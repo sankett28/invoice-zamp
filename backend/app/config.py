@@ -1,6 +1,10 @@
+from pathlib import Path
 from functools import lru_cache
 from typing import Literal
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_DB_PATH = (BACKEND_DIR / "ledgerflow.db").as_posix()
 
 
 class Settings(BaseSettings):
@@ -17,7 +21,7 @@ class Settings(BaseSettings):
     llm_max_retries: int = 1
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///./ledgerflow.db"
+    database_url: str = f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}"
 
     # Storage
     storage_backend: Literal["local", "supabase"] = "local"
@@ -45,6 +49,12 @@ class Settings(BaseSettings):
     # OCR / Tesseract fallback
     tessdata_prefix: str = ""
     tesseract_lang: str = "eng"
+
+    def model_post_init(self, __context):
+        # Ensure SQLite path resolves to backend/ledgerflow.db regardless of process CWD
+        if self.database_url.startswith("sqlite+aiosqlite:///.") or self.database_url == "sqlite+aiosqlite:///ledgerflow.db":
+            db_file = (BACKEND_DIR / "ledgerflow.db").as_posix()
+            self.database_url = f"sqlite+aiosqlite:///{db_file}"
 
     model_config = SettingsConfigDict(
         env_file=("../.env", ".env"),

@@ -73,6 +73,11 @@ class ReviewRequest(BaseModel):
     reviewer_label: str = "AP Reviewer"
     reason: str
     assigned_po_id: uuid.UUID | None = None
+    po_id: uuid.UUID | None = None
+
+    def model_post_init(self, __context):
+        if self.po_id and not self.assigned_po_id:
+            self.assigned_po_id = self.po_id
 
 
 class RunSummary(BaseModel):
