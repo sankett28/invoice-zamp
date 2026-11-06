@@ -1,0 +1,9 @@
+po_number,vendor_code,currency,po_total,po_date,status,description
+PO-1001,V-001,INR,100000.00,2026-10-01,OPEN,Office furniture and supplies Q4 2026
+PO-2001,V-002,INR,100000.00,2026-10-05,OPEN,IT infrastructure and cloud support services
+PO-2002,V-002,INR,80000.00,2026-10-10,OPEN,Software licensing and enterprise support
+PO-2003,V-002,INR,75000.00,2026-10-15,OPEN,Network equipment maintenance services
+PO-3001,V-003,INR,50000.00,2026-09-20,OPEN,Logistics freight and inter-city transport
+PO-4001,V-001,INR,30000.00,2026-08-01,CLOSED,Completed office stationery order
+PO-5001,V-001,INR,60000.00,2026-08-15,CANCELLED,Cancelled furniture contract
+PO-6001,V-003,INR,45000.00,2026-10-02,OPEN,BluePeak specialised freight services

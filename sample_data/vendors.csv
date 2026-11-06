@@ -1,0 +1,6 @@
+vendor_code,legal_name,tax_id,status
+V-001,Aster Office Supplies Pvt Ltd,27ABCDE1234F1Z5,APPROVED
+V-002,Northstar IT Services Pvt Ltd,29FGHIJ5678K2Y3,APPROVED
+V-003,BluePeak Logistics Pvt Ltd,33KLMNO9012L3X4,APPROVED
+V-004,OldTown Stationery,,INACTIVE
+V-005,Metro Components,36PQRST3456M4W5,UNAPPROVED

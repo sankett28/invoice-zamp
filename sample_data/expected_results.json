@@ -1,0 +1,93 @@
+{
+  "scenarios": [
+    {
+      "file": "invoice_happy_path.pdf",
+      "scenario": "Happy Path",
+      "vendor_code": "V-001",
+      "po_number": "PO-1001",
+      "expected_status": "READY_FOR_AP_APPROVAL",
+      "key_checks": {
+        "R-001": "PASS",
+        "R-002": "PASS",
+        "R-004": "PASS",
+        "R-006": "PASS",
+        "R-007": "PASS",
+        "R-009": "PASS",
+        "R-010": "PASS",
+        "R-011": "PASS",
+        "R-013": "PASS",
+        "R-015": "PASS"
+      }
+    },
+    {
+      "file": "invoice_duplicate_reformatted.pdf",
+      "scenario": "EC-1: Reformatted Duplicate Submission",
+      "vendor_code": "V-001",
+      "invoice_number": "AST-2026-041",
+      "expected_status": "BLOCKED",
+      "key_checks": {
+        "R-012": "FAIL"
+      }
+    },
+    {
+      "file": "invoice_split_1.pdf",
+      "scenario": "EC-2: Split PO Partial Invoice 1",
+      "vendor_code": "V-002",
+      "po_number": "PO-2001",
+      "expected_status": "READY_FOR_AP_APPROVAL",
+      "expected_remaining_after": "60000.00"
+    },
+    {
+      "file": "invoice_split_2.pdf",
+      "scenario": "EC-2: Split PO Partial Invoice 2",
+      "vendor_code": "V-002",
+      "po_number": "PO-2001",
+      "expected_status": "READY_FOR_AP_APPROVAL",
+      "expected_remaining_after": "0.00"
+    },
+    {
+      "file": "invoice_split_3.pdf",
+      "scenario": "EC-2: Split PO Overbilling Attempt",
+      "vendor_code": "V-002",
+      "po_number": "PO-2001",
+      "expected_status": "REVIEW_REQUIRED",
+      "key_checks": {
+        "R-015": "FAIL"
+      }
+    },
+    {
+      "file": "invoice_missing_po.pdf",
+      "scenario": "EC-3: Missing PO Reference with Candidates",
+      "vendor_code": "V-002",
+      "expected_status": "REVIEW_REQUIRED",
+      "key_checks": {
+        "R-009": "FAIL"
+      }
+    },
+    {
+      "file": "invoice_low_quality_scan.pdf",
+      "scenario": "EC-4: Scanned / Low Quality Invoice",
+      "vendor_code": "V-003",
+      "expected_status": "REVIEW_REQUIRED"
+    },
+    {
+      "file": "invoice_vendor_po_mismatch.pdf",
+      "scenario": "Vendor PO Ownership Conflict",
+      "vendor_code": "V-001",
+      "po_number": "PO-3001",
+      "expected_status": "BLOCKED",
+      "key_checks": {
+        "R-010": "FAIL"
+      }
+    },
+    {
+      "file": "invoice_total_mismatch.pdf",
+      "scenario": "Invoice Arithmetic Discrepancy",
+      "vendor_code": "V-001",
+      "expected_status": "REVIEW_REQUIRED",
+      "key_checks": {
+        "R-013": "FAIL"
+      }
+    }
+  ]
+}
