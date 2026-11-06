@@ -1,8 +1,18 @@
+# Environment & Secrets (Never commit credentials)
 .env
+.env.*
+*.env
+*.env.*
+!.env.example
+
+# Python
 *.pyc
+*.pyo
+*.pyd
 __pycache__/
 .venv/
 venv/
+ENV/
 *.egg-info/
 dist/
 build/
@@ -12,21 +22,30 @@ build/
 htmlcov/
 .coverage
 
-# Frontend
+# Frontend (Node & Next.js)
 node_modules/
 .next/
 out/
 .turbo/
+*.tsbuildinfo
+next-env.d.ts
 
-# Storage & Databases
+# Storage, Uploads & Databases
 storage/
+backend/storage/
 backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal
 *.sqlite3
 
-# Misc
+# OS & Editor
 *.log
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
