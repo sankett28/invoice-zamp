@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
 
     llm_fallback_provider: str = "gemini"
-    llm_fallback_model: str = "gemini-3.8-flash"
+    llm_fallback_model: str = "gemini-3.5-flash"
     gemini_api_key: str = ""
 
     llm_timeout_seconds: int = 30
