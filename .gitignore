@@ -1,0 +1,31 @@
+.env
+*.pyc
+__pycache__/
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Frontend
+node_modules/
+.next/
+out/
+.turbo/
+
+# Storage & Databases
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+
+# Misc
+*.log
+.DS_Store
+Thumbs.db
