@@ -171,15 +171,29 @@ Rules:
         from google.genai import types
 
         client = genai.Client(api_key=settings.gemini_api_key)
-        response = client.models.generate_content(
-            model=settings.llm_fallback_model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.1,
-            )
-        )
-        return response.text or "{}"
+        models_to_try = [settings.llm_fallback_model, "gemini-3.5-flash", "gemini-3.8-flash"]
+        # Deduplicate
+        seen = set()
+        deduped = [m for m in models_to_try if not (m in seen or seen.add(m))]
+
+        last_err = None
+        for m in deduped:
+            try:
+                response = await asyncio.to_thread(
+                    client.models.generate_content,
+                    model=m,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.1,
+                    )
+                )
+                if response.text:
+                    return response.text
+            except Exception as e:
+                logger.warning(f"Gemini model {m} failed: {e}. Trying next...")
+                last_err = e
+        raise last_err or RuntimeError("All Gemini models failed.")
 
     async def _call_gemini_vision(self, page_images: list[bytes], prompt: str) -> str:
         from google import genai
@@ -190,15 +204,28 @@ Rules:
         for img_bytes in page_images:
             parts.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
 
-        response = client.models.generate_content(
-            model=settings.llm_fallback_model,
-            contents=[types.Content(parts=parts)],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.1,
-            )
-        )
-        return response.text or "{}"
+        models_to_try = [settings.llm_fallback_model, "gemini-3.5-flash", "gemini-3.8-flash"]
+        seen = set()
+        deduped = [m for m in models_to_try if not (m in seen or seen.add(m))]
+
+        last_err = None
+        for m in deduped:
+            try:
+                response = await asyncio.to_thread(
+                    client.models.generate_content,
+                    model=m,
+                    contents=[types.Content(parts=parts)],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.1,
+                    )
+                )
+                if response.text:
+                    return response.text
+            except Exception as e:
+                logger.warning(f"Gemini vision model {m} failed: {e}. Trying next...")
+                last_err = e
+        raise last_err or RuntimeError("All Gemini vision models failed.")
 
     def _parse_json(self, raw_str: str) -> InvoiceExtractionResult:
         """Strips code fences and validates through Pydantic."""

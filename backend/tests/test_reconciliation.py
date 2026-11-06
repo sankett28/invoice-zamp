@@ -98,3 +98,27 @@ def test_po_balance_exceeding_tolerance():
     )
     assert res["passes"] is False
     assert res["is_within_tolerance"] is False
+
+
+def test_3way_line_items_matching():
+    from app.services.reconciliation import reconcile_3way_line_items
+
+    inv_lines = [
+        {"description": "Ergonomic Mesh Office Chairs", "quantity": "10", "unit_price": "8000.00", "line_total": "80000.00"}
+    ]
+    po_lines = [
+        {"description": "Ergonomic Mesh Office Chairs Q4", "quantity": "10", "unit_price": "8000.00"}
+    ]
+
+    res = reconcile_3way_line_items(inv_lines, po_lines)
+    assert res["passes"] is True
+    assert res["matched_lines_count"] == 1
+    assert len(res["discrepancies"]) == 0
+
+    # Discrepancy test
+    po_lines_diff_price = [
+        {"description": "Ergonomic Mesh Office Chairs", "quantity": "10", "unit_price": "7500.00"}
+    ]
+    res_diff = reconcile_3way_line_items(inv_lines, po_lines_diff_price)
+    assert res_diff["passes"] is False
+    assert len(res_diff["discrepancies"]) == 1

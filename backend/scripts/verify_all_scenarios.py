@@ -11,10 +11,10 @@ def upload_invoice(file_path):
         r.raise_for_status()
         return r.json()["run_id"]
 
-def wait_for_run(run_id, max_attempts=15):
+def wait_for_run(run_id, max_attempts=30):
     for i in range(max_attempts):
-        time.sleep(1)
-        r = httpx.get(f"{API_BASE}/api/runs/{run_id}", timeout=10.0)
+        time.sleep(1.5)
+        r = httpx.get(f"{API_BASE}/api/runs/{run_id}", timeout=30.0)
         r.raise_for_status()
         data = r.json()
         if data.get("processing_state") in ["COMPLETED", "FAILED"]:

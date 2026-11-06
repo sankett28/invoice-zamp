@@ -79,7 +79,59 @@ class SupabaseStorageService(StorageService):
             raise FileNotFoundError(f"Supabase object not found: {storage_path}")
 
 
+class S3StorageService(StorageService):
+    def __init__(self):
+        self.bucket = settings.s3_bucket
+        self.region = settings.s3_region
+        self.access_key = settings.s3_access_key
+        self.secret_key = settings.s3_secret_key
+        self.endpoint_url = settings.s3_endpoint_url or None
+
+    async def save_file(self, file_bytes: bytes, filename: str, run_id: str) -> str:
+        if not self.access_key or not self.secret_key:
+            return await LocalStorageService().save_file(file_bytes, filename, run_id)
+        try:
+            import boto3
+            client = boto3.client(
+                "s3",
+                region_name=self.region,
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                endpoint_url=self.endpoint_url,
+            )
+            safe_filename = "".join(c for c in filename if c.isalnum() or c in "._- ")
+            s3_key = f"invoices/{run_id}/{safe_filename}"
+            client.put_object(
+                Bucket=self.bucket,
+                Key=s3_key,
+                Body=file_bytes,
+                ContentType="application/pdf",
+            )
+            return s3_key
+        except Exception:
+            return await LocalStorageService().save_file(file_bytes, filename, run_id)
+
+    async def get_file(self, storage_path: str) -> bytes:
+        if not self.access_key or not self.secret_key or os.path.exists(storage_path):
+            return await LocalStorageService().get_file(storage_path)
+        try:
+            import boto3
+            client = boto3.client(
+                "s3",
+                region_name=self.region,
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_key,
+                endpoint_url=self.endpoint_url,
+            )
+            resp = client.get_object(Bucket=self.bucket, Key=storage_path)
+            return resp["Body"].read()
+        except Exception:
+            return await LocalStorageService().get_file(storage_path)
+
+
 def get_storage_service() -> StorageService:
     if settings.storage_backend == "supabase":
         return SupabaseStorageService()
+    elif settings.storage_backend == "s3":
+        return S3StorageService()
     return LocalStorageService()

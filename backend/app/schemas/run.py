@@ -9,8 +9,16 @@ from app.schemas.purchase_order import PurchaseOrderResponse
 
 class UploadResponse(BaseModel):
     run_id: uuid.UUID
-    processing_state: str
+    original_filename: str = ""
+    processing_state: str = "QUEUED"
     message: str
+
+
+class BatchUploadResponse(BaseModel):
+    total_files: int
+    successful_queued: int
+    runs: list[UploadResponse]
+    errors: list[dict[str, str]] = []
 
 
 class RunStageResponse(BaseModel):
