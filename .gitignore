@@ -19,6 +19,7 @@ out/
 .turbo/
 
 # Storage & Databases
+storage/
 backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
 *.db

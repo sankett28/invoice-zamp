@@ -1,3 +1,6 @@
+import csv
+import io
+import json
 import os
 import uuid
 from decimal import Decimal
@@ -50,6 +53,80 @@ async def list_runs(
     result = await db.execute(stmt)
     runs = result.scalars().all()
     return runs
+
+
+@router.get("/export")
+async def export_runs(
+    status: str | None = Query(None, description="Filter by decision_status, e.g. READY_FOR_AP_APPROVAL"),
+    export_format: str = Query("csv", alias="format", description="csv or json"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Exports invoices in ERP / Accounting ready format (CSV or JSON).
+    """
+    stmt = (
+        select(InvoiceRun)
+        .options(selectinload(InvoiceRun.vendor), selectinload(InvoiceRun.purchase_order))
+        .order_by(desc(InvoiceRun.created_at))
+    )
+    if status and status.upper() != "ALL":
+        stmt = stmt.where(InvoiceRun.decision_status == status)
+
+    res = await db.execute(stmt)
+    runs = res.scalars().all()
+
+    records = []
+    for r in runs:
+        records.append({
+            "run_id": str(r.id),
+            "invoice_number": r.invoice_number or "",
+            "invoice_date": str(r.invoice_date) if r.invoice_date else "",
+            "vendor_code": r.vendor.vendor_code if r.vendor else "",
+            "vendor_name": r.vendor.legal_name if r.vendor else "",
+            "tax_id": r.vendor.tax_id if (r.vendor and r.vendor.tax_id) else "",
+            "po_number": r.purchase_order.po_number if r.purchase_order else "",
+            "currency": r.currency or "INR",
+            "grand_total": str(r.grand_total) if r.grand_total is not None else "0.00",
+            "decision_status": r.decision_status or "",
+            "decision_summary": r.decision_summary or "",
+            "created_at": r.created_at.isoformat() if r.created_at else "",
+            "completed_at": r.completed_at.isoformat() if r.completed_at else "",
+        })
+
+    if export_format.lower() == "json":
+        return Response(
+            content=json.dumps({"count": len(records), "invoices": records}, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="ledgerflow_erp_export.json"'},
+        )
+
+    output = io.StringIO()
+    writer = csv.DictWriter(
+        output,
+        fieldnames=[
+            "run_id",
+            "invoice_number",
+            "invoice_date",
+            "vendor_code",
+            "vendor_name",
+            "tax_id",
+            "po_number",
+            "currency",
+            "grand_total",
+            "decision_status",
+            "decision_summary",
+            "created_at",
+            "completed_at",
+        ],
+    )
+    writer.writeheader()
+    writer.writerows(records)
+
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="ledgerflow_erp_export.csv"'},
+    )
 
 
 @router.get("/{run_id}", response_model=RunDetailResponse)

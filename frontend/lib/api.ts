@@ -91,6 +91,7 @@ export interface RunDetail extends RunSummary {
 
 export interface UploadResponse {
   run_id: string;
+  original_filename?: string;
   processing_state: string;
   message: string;
 }
@@ -108,6 +109,28 @@ export const api = {
       throw new Error(err || "Failed to upload invoice.");
     }
     return res.json();
+  },
+
+  async uploadBatch(files: File[]): Promise<{ total_files: number; successful_queued: number; runs: UploadResponse[]; errors: { filename: string; error: string }[] }> {
+    const form = new FormData();
+    for (const file of files) {
+      form.append("files", file);
+    }
+    const res = await fetch(`${API_BASE}/api/invoices/batch`, {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || "Failed to upload batch.");
+    }
+    return res.json();
+  },
+
+  getExportUrl(format: "csv" | "json" = "csv", status?: string): string {
+    const params = new URLSearchParams({ format });
+    if (status && status !== "ALL") params.set("status", status);
+    return `${API_BASE}/api/runs/export?${params.toString()}`;
   },
 
   async listRuns(status?: string, limit = 50, offset = 0): Promise<RunSummary[]> {

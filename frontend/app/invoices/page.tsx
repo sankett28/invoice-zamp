@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Filter, ArrowUpRight, Upload, RefreshCw } from "lucide-react";
+import { Search, Filter, ArrowUpRight, Upload, RefreshCw, Download, FileSpreadsheet } from "lucide-react";
 import { api, RunSummary } from "@/lib/api";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -55,13 +55,33 @@ export default function InvoicesListPage() {
             Full durable audit log of all invoice submissions and automated decisions.
           </p>
         </div>
-        <Link
-          href="/upload"
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-900 text-white font-medium text-xs hover:bg-slate-800 transition shadow-sm"
-        >
-          <Upload className="w-3.5 h-3.5" />
-          <span>Upload Invoice</span>
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <a
+            href={api.getExportUrl("csv", activeTab)}
+            download="ledgerflow_ap_export.csv"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium text-xs transition shadow-xs"
+            title="Download ERP AP Journal CSV"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Export CSV</span>
+          </a>
+          <a
+            href={api.getExportUrl("json", activeTab)}
+            download="ledgerflow_erp_export.json"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium text-xs transition shadow-xs"
+            title="Download ERP JSON"
+          >
+            <Download className="w-3.5 h-3.5 text-blue-600" />
+            <span>Export JSON</span>
+          </a>
+          <Link
+            href="/upload"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-900 text-white font-medium text-xs hover:bg-slate-800 transition shadow-sm"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Upload Invoice</span>
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">

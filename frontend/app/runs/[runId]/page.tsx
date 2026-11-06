@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, RefreshCw, AlertCircle, FileText } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw, AlertCircle, FileText, Eye, EyeOff } from "lucide-react";
 import { api, RunDetail } from "@/lib/api";
 import { StatusBadge } from "@/components/status-badge";
 import { RunTimeline } from "@/components/run-timeline";
@@ -20,6 +20,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
   const [run, setRun] = useState<RunDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [showPdf, setShowPdf] = useState<boolean>(false);
 
   const fetchRun = async () => {
     try {
@@ -101,6 +102,14 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
             >
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
+            <button
+              onClick={() => setShowPdf(!showPdf)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-medium transition shadow-xs"
+              title="Toggle PDF Document Preview"
+            >
+              {showPdf ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              <span>{showPdf ? "Hide PDF" : "Preview PDF"}</span>
+            </button>
             <a
               href={api.getFileUrl(run.id)}
               target="_blank"
@@ -108,7 +117,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-medium transition shadow-xs"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Download Original PDF</span>
+              <span>Download PDF</span>
             </a>
           </div>
         </div>
@@ -135,6 +144,26 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
           </div>
         </div>
       </div>
+
+      {/* PDF Document Preview Panel (Collapsible) */}
+      {showPdf && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs font-medium text-slate-700">
+            <span className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-slate-500" />
+              Source Document: {run.original_filename}
+            </span>
+            <span className="text-slate-400 font-mono text-[11px]">SHA-256: {run.file_sha256.substring(0, 16)}...</span>
+          </div>
+          <div className="w-full h-[650px] bg-slate-100">
+            <iframe
+              src={api.getFileUrl(run.id)}
+              className="w-full h-full border-0"
+              title="Invoice PDF Preview"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Two-Column Responsive Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

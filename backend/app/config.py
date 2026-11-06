@@ -24,11 +24,16 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite+aiosqlite:///{DEFAULT_DB_PATH}"
 
     # Storage
-    storage_backend: Literal["local", "supabase"] = "local"
+    storage_backend: Literal["local", "supabase", "s3"] = "local"
     local_storage_path: str = "./storage/uploads"
     supabase_url: str = ""
     supabase_service_key: str = ""
     supabase_storage_bucket: str = "ledgerflow-invoices"
+    s3_bucket: str = "ledgerflow-invoices"
+    s3_region: str = "ap-south-1"
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    s3_endpoint_url: str = ""
 
     # Upload Constraints
     max_file_size_mb: int = 10

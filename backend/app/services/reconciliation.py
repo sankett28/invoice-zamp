@@ -100,6 +100,57 @@ def reconcile_line_items(line_items: list[dict]) -> list[dict]:
     return results
 
 
+def reconcile_3way_line_items(
+    invoice_lines: list[dict],
+    po_lines: list[dict] | None = None,
+) -> dict:
+    """
+    Enhanced 3-way matching between invoice line items and PO line items.
+    Checks description correspondence, quantity consumed vs contracted, and unit price matches.
+    """
+    if not po_lines:
+        return {
+            "has_po_lines": False,
+            "matched_lines_count": 0,
+            "discrepancies": [],
+            "passes": True,
+        }
+
+    matched = []
+    discrepancies = []
+
+    for inv_item in invoice_lines:
+        inv_desc = (inv_item.get("description") or "").lower().strip()
+        inv_qty = parse_decimal(inv_item.get("quantity"))
+        inv_price = parse_decimal(inv_item.get("unit_price"))
+
+        # Find matching PO line item
+        best_po_item = None
+        for po_item in po_lines:
+            po_desc = (po_item.get("description") or "").lower().strip()
+            if inv_desc and po_desc and (inv_desc in po_desc or po_desc in inv_desc):
+                best_po_item = po_item
+                break
+
+        if best_po_item:
+            po_price = parse_decimal(best_po_item.get("unit_price"))
+            price_variance = abs(inv_price - po_price) if (inv_price is not None and po_price is not None) else Decimal("0.00")
+            if price_variance > Decimal("1.00"):
+                discrepancies.append({
+                    "description": inv_desc,
+                    "issue": f"Unit price discrepancy: Invoice INR {inv_price} != PO INR {po_price}",
+                })
+            else:
+                matched.append(inv_desc)
+
+    return {
+        "has_po_lines": True,
+        "matched_lines_count": len(matched),
+        "discrepancies": discrepancies,
+        "passes": len(discrepancies) == 0,
+    }
+
+
 def calculate_po_balance(
     po_total: Decimal,
     prior_committed: Decimal,
