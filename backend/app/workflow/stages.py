@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.run_stage import RunStage
@@ -41,7 +41,7 @@ async def mark_stage_running(run_id: uuid.UUID, stage_key: str, db: AsyncSession
     stmt = (
         update(RunStage)
         .where(RunStage.run_id == run_id, RunStage.stage_key == stage_key)
-        .values(status="RUNNING", started_at=datetime.utcnow())
+        .values(status="RUNNING", started_at=datetime.now(timezone.utc))
     )
     await db.execute(stmt)
     await db.commit()
@@ -75,7 +75,7 @@ async def mark_stage_done(
     db: AsyncSession | None = None,
 ) -> None:
     """Updates a stage to completed/failed/skipped with timing and summary."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     stmt = select(RunStage).where(RunStage.run_id == run_id, RunStage.stage_key == stage_key)
     res = await db.execute(stmt)
     stage = res.scalars().first()
@@ -85,8 +85,11 @@ async def mark_stage_done(
         stage.summary = summary
         stage.details = _clean_for_json(details) if details is not None else None
         if stage.started_at:
-            delta = now - stage.started_at
-            stage.duration_ms = int(delta.total_seconds() * 1000)
+            s_at = stage.started_at
+            if s_at.tzinfo is None:
+                s_at = s_at.replace(tzinfo=timezone.utc)
+            delta = now - s_at
+            stage.duration_ms = max(0, int(delta.total_seconds() * 1000))
         else:
             stage.duration_ms = 50
         await db.commit()
