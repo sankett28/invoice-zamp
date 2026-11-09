@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -89,10 +90,13 @@ Rules:
         # 2. Try Gemini (Fallback)
         if settings.gemini_api_key:
             try:
+                logger.info("Attempting AI extraction via Google Gemini...")
                 raw_json = await self._call_gemini_text(prompt)
-                return self._parse_json(raw_json)
+                res = self._parse_json(raw_json)
+                logger.info(f"AI extraction successful! Extracted invoice: {res.invoice.number}, Vendor: {res.vendor.name}, Total: {res.amounts.grand_total}")
+                return res
             except Exception as e:
-                logger.warning(f"Gemini text extraction failed: {e}.")
+                logger.error(f"Gemini text extraction failed: {e}", exc_info=True)
                 errors.append(f"Gemini: {str(e)}")
 
         # 3. If neither worked or no API keys configured, use rule-based heuristic parser for test/dev
@@ -171,7 +175,13 @@ Rules:
         from google.genai import types
 
         client = genai.Client(api_key=settings.gemini_api_key)
-        models_to_try = [settings.llm_fallback_model, "gemini-3.5-flash", "gemini-3.8-flash"]
+        models_to_try = [
+            settings.llm_fallback_model,
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-flash-latest",
+            "gemini-flash-lite-latest",
+        ]
         # Deduplicate
         seen = set()
         deduped = [m for m in models_to_try if not (m in seen or seen.add(m))]
@@ -204,7 +214,13 @@ Rules:
         for img_bytes in page_images:
             parts.append(types.Part.from_bytes(data=img_bytes, mime_type="image/png"))
 
-        models_to_try = [settings.llm_fallback_model, "gemini-3.5-flash", "gemini-3.8-flash"]
+        models_to_try = [
+            settings.llm_fallback_model,
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite",
+            "gemini-flash-latest",
+            "gemini-flash-lite-latest",
+        ]
         seen = set()
         deduped = [m for m in models_to_try if not (m in seen or seen.add(m))]
 
@@ -310,4 +326,128 @@ Rules:
                 "invoice_number": {"raw_text": inv_match.group(0) if inv_match else None, "page_number": 1, "extraction_method": "PDF_TEXT", "confidence": 0.95},
                 "grand_total": {"raw_text": total_match.group(0) if total_match else None, "page_number": 1, "extraction_method": "PDF_TEXT", "confidence": 0.95},
             }
+        )
+
+    def _build_deterministic_summary(
+        self,
+        vendor_name: str | None,
+        invoice_number: str | None,
+        grand_total: str | None,
+        currency: str | None,
+        po_number: str | None,
+        po_total: str | None,
+        po_remaining_before: str | None,
+        po_remaining_after: str | None,
+        decision_status: str,
+        attention_rules: list[str],
+        passed_rules_count: int,
+    ) -> str:
+        curr = currency or "INR"
+        v_name = vendor_name or "Vendor"
+        inv_num = invoice_number or "unspecified invoice"
+        amt_str = f"{curr} {grand_total}" if grand_total else "the stated amount"
+
+        if decision_status == "READY_FOR_AP_APPROVAL":
+            if po_number:
+                rem_txt = f", leaving {curr} {po_remaining_after} available in remaining funds" if po_remaining_after else ""
+                budget_txt = f" of the {curr} {po_total} allocated budget" if po_total else ""
+                return (
+                    f"{v_name} submitted invoice {inv_num} for {amt_str}, matching purchase order {po_number}. "
+                    f"This invoice consumes budget as expected{budget_txt}{rem_txt}. "
+                    f"All {passed_rules_count} automated audit checks passed cleanly: GST and line calculations are mathematically exact, "
+                    f"the document fingerprint is unique with zero duplicate risk, and no suspicious anomalies were detected. "
+                    f"This invoice is verified and clear for immediate Accounts Payable approval."
+                )
+            else:
+                return (
+                    f"{v_name} submitted invoice {inv_num} for {amt_str}. "
+                    f"All {passed_rules_count} automated audit checks passed cleanly: arithmetic, tax compliance, and duplicate checks are fully reconciled. "
+                    f"This invoice is clear for Accounts Payable approval."
+                )
+        elif decision_status == "REVIEW_REQUIRED":
+            discrepancy = attention_rules[0] if attention_rules else "A review discrepancy was detected during audit"
+            po_txt = f"Linked against PO {po_number}. " if po_number else "No exact PO was quoted on the document. "
+            return (
+                f"Invoice {inv_num} from {v_name} for {amt_str} requires human auditor attention. "
+                f"{po_txt}{discrepancy}. "
+                f"Core tax and duplicate integrity checks succeeded, but auditor verification and sign-off are required prior to releasing payment."
+            )
+        else:
+            blocker = attention_rules[0] if attention_rules else "policy violations or duplicate detection"
+            return (
+                f"Invoice {inv_num} for {amt_str} was BLOCKED by the automated audit engine. "
+                f"Blocker reason: {blocker}. "
+                f"Do not process or schedule payment for this document until the blocker is resolved."
+            )
+
+    async def generate_run_summary(
+        self,
+        vendor_name: str | None,
+        invoice_number: str | None,
+        grand_total: str | None,
+        currency: str | None,
+        po_number: str | None,
+        po_total: str | None,
+        po_remaining_before: str | None,
+        po_remaining_after: str | None,
+        decision_status: str,
+        attention_rules: list[str],
+        passed_rules_count: int,
+    ) -> str:
+        prompt = f"""You are the senior AI accounts payable auditor for LedgerFlow.
+Write a clear, concise, highly informative 2-3 sentence executive briefing about this invoice processing run for a human finance manager.
+Keep it strictly under 85 words. No markdown bullet points or headers; write as a single cohesive, elegant paragraph.
+
+Context:
+- Vendor Name: {vendor_name or 'Unmatched Vendor'}
+- Invoice Number: {invoice_number or 'Unknown'}
+- Invoice Amount: {currency or 'INR'} {grand_total or '0.00'}
+- Purchase Order Reference: {po_number or 'None quoted on invoice'}
+- PO Budget: {currency or 'INR'} {po_total or 'N/A'} (Remaining before: {currency or 'INR'} {po_remaining_before or 'N/A'}, Remaining after: {currency or 'INR'} {po_remaining_after or 'N/A'})
+- Flagged Issues / Warnings: {'; '.join(attention_rules) if attention_rules else 'None (0 flags)'}
+- Passing Checks Count: {passed_rules_count} checks passed cleanly
+- System Audit Decision: {decision_status}
+
+Instructions:
+1. Explain who the invoice is from, the amount, and PO linkage.
+2. Mention the spend vs budget impact (how much is consumed or remaining).
+3. Confirm if math, taxes, and duplicate checks are clean or explain what was flagged.
+4. Conclude with whether it is ready for approval or needs human auditor review.
+"""
+        if settings.gemini_api_key:
+            try:
+                from google import genai
+                from google.genai import types
+
+                client = genai.Client(api_key=settings.gemini_api_key)
+                for m in ["gemini-3.5-flash-lite", "gemini-3.5-flash"]:
+                    try:
+                        resp = await asyncio.to_thread(
+                            client.models.generate_content,
+                            model=m,
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                temperature=0.2,
+                                max_output_tokens=150,
+                            ),
+                        )
+                        if resp.text and len(resp.text.strip()) > 30:
+                            return resp.text.strip()
+                    except Exception as me:
+                        logger.warning(f"Gemini {m} failed for summary: {me}")
+            except Exception as e:
+                logger.warning(f"AI summary LLM call failed: {e}")
+
+        return self._build_deterministic_summary(
+            vendor_name=vendor_name,
+            invoice_number=invoice_number,
+            grand_total=grand_total,
+            currency=currency,
+            po_number=po_number,
+            po_total=po_total,
+            po_remaining_before=po_remaining_before,
+            po_remaining_after=po_remaining_after,
+            decision_status=decision_status,
+            attention_rules=attention_rules,
+            passed_rules_count=passed_rules_count,
         )

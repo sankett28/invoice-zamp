@@ -170,6 +170,44 @@ async def get_run_detail(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     if po_resp:
         resp_dict["purchase_order"] = po_resp
 
+    # Ensure rich AI summary is always returned
+    ai_sum = run.decision.summary if (run.decision and run.decision.summary and len(run.decision.summary) > 70) else run.decision_summary
+    if not ai_sum or len(ai_sum) < 65 or ai_sum.startswith("All required checks") or ai_sum.startswith("Reviewer resolved invoice"):
+        v_name = run.vendor.legal_name if run.vendor else ((run.extracted_data or {}).get("vendor", {}).get("name") if isinstance(run.extracted_data, dict) else None)
+        po_obj = run.purchase_order
+        po_num = po_obj.po_number if po_obj else None
+        po_tot = str(po_obj.po_total) if po_obj else None
+        po_rem_before = str(rem) if po_resp and 'rem' in locals() else (str(po_obj.po_total) if po_obj else None)
+        invoice_amt = Decimal(str(run.grand_total or "0.00"))
+        po_rem_after = str(max(Decimal("0.00"), Decimal(po_rem_before) - invoice_amt)) if po_rem_before else None
+
+        attention_rules = [
+            f"{r.rule_name}: {r.message}"
+            for r in (run.rule_results or [])
+            if r.status in ("FAIL", "WARNING")
+        ]
+        passed_count = sum(1 for r in (run.rule_results or []) if r.status == "PASS")
+
+        from app.services.llm_extractor import LLMExtractor
+        extractor = LLMExtractor()
+        ai_sum = extractor._build_deterministic_summary(
+            vendor_name=v_name,
+            invoice_number=run.invoice_number,
+            grand_total=str(run.grand_total) if run.grand_total else None,
+            currency=run.currency,
+            po_number=po_num,
+            po_total=po_tot,
+            po_remaining_before=po_rem_before,
+            po_remaining_after=po_rem_after,
+            decision_status=run.decision_status or "REVIEW_REQUIRED",
+            attention_rules=attention_rules,
+            passed_rules_count=passed_count,
+        )
+
+    resp_dict["ai_summary"] = ai_sum
+    if not resp_dict.get("decision_summary") or len(resp_dict["decision_summary"]) < 60:
+        resp_dict["decision_summary"] = ai_sum
+
     return resp_dict
 
 

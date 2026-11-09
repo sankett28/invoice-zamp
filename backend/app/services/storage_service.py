@@ -59,6 +59,7 @@ class SupabaseStorageService(StorageService):
         headers = {
             "Authorization": f"Bearer {self.service_key}",
             "Content-Type": "application/pdf",
+            "x-upsert": "true",
         }
         async with httpx.AsyncClient() as client:
             resp = await client.post(url, headers=headers, content=file_bytes)
@@ -71,11 +72,19 @@ class SupabaseStorageService(StorageService):
         if not self.supabase_url or not self.service_key or os.path.exists(storage_path):
             return await LocalStorageService().get_file(storage_path)
         import httpx
-        url = f"{self.supabase_url}/storage/v1/object/public/{self.bucket}/{storage_path}"
+        headers = {"Authorization": f"Bearer {self.service_key}"}
+        urls = [
+            f"{self.supabase_url}/storage/v1/object/authenticated/{self.bucket}/{storage_path}",
+            f"{self.supabase_url}/storage/v1/object/public/{self.bucket}/{storage_path}",
+        ]
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url)
-            if resp.status_code == 200:
-                return resp.content
+            for url in urls:
+                try:
+                    resp = await client.get(url, headers=headers)
+                    if resp.status_code == 200:
+                        return resp.content
+                except Exception:
+                    continue
             raise FileNotFoundError(f"Supabase object not found: {storage_path}")
 
 

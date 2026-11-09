@@ -111,6 +111,7 @@ class RunSummary(BaseModel):
 
 class RunDetailResponse(RunSummary):
     file_sha256: str
+    ai_summary: str | None = None
     file_size_bytes: int
     extracted_data: dict[str, Any] | None = None
     stages: list[RunStageResponse] = []

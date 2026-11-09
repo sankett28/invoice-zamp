@@ -10,16 +10,25 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# Engine creation: check SQLite connection args
 connect_args = {}
+engine_kwargs = {
+    "echo": False,
+    "future": True,
+}
+
 if settings.database_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False, "timeout": 30.0}
+    engine_kwargs["connect_args"] = connect_args
+else:
+    # Remote PostgreSQL (Supabase) settings to prevent connection drops and stale sockets
+    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_recycle"] = 300
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
 
 engine = create_async_engine(
     settings.database_url,
-    echo=False,
-    connect_args=connect_args,
-    future=True,
+    **engine_kwargs,
 )
 
 
@@ -31,6 +40,7 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor.execute("PRAGMA synchronous=NORMAL")
         cursor.execute("PRAGMA busy_timeout=30000")
         cursor.close()
+
 
 async_session_factory = async_sessionmaker(
     bind=engine,
