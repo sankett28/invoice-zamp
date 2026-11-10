@@ -2,7 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Filter, ArrowUpRight, Upload, RefreshCw, Download, FileSpreadsheet } from "lucide-react";
+import {
+  MagnifyingGlass,
+  ArrowUpRight,
+  UploadSimple,
+  ArrowsClockwise,
+  FileCsv,
+  FileCode,
+  FileText,
+  Buildings,
+  FolderOpen,
+} from "@phosphor-icons/react";
 import { api, RunSummary } from "@/lib/api";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
@@ -43,59 +53,69 @@ export default function InvoicesListPage() {
     const invNum = (r.invoice_number || "").toLowerCase();
     const vendorName = (r.vendor?.legal_name || "").toLowerCase();
     const poNum = (r.purchase_order?.po_number || "").toLowerCase();
-    return invNum.includes(q) || vendorName.includes(q) || poNum.includes(q);
+    const filename = (r.original_filename || "").toLowerCase();
+    return invNum.includes(q) || vendorName.includes(q) || poNum.includes(q) || filename.includes(q);
   });
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl w-full mx-auto">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 max-w-7xl w-full mx-auto">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-border">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Invoice History & Runs</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Full durable audit log of all invoice submissions and automated decisions.
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-semibold mb-2">
+            <span>{runs.length} Historical Records</span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-[1.15]">
+            Invoice History & Audit Runs
+          </h1>
+          <p className="text-foreground/70 text-sm sm:text-base mt-1.5 max-w-2xl leading-relaxed">
+            Full durable audit log of all ingested invoice documents, deterministic decisions, and sign-offs.
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+
+        {/* Actions */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <a
             href={api.getExportUrl("csv", activeTab)}
             download="ledgerflow_ap_export.csv"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium text-xs transition shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-card text-foreground hover:bg-muted font-medium text-xs transition shadow-xs cursor-pointer"
             title="Download ERP AP Journal CSV"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <FileCsv size={16} weight="bold" className="text-primary" />
             <span>Export CSV</span>
           </a>
           <a
             href={api.getExportUrl("json", activeTab)}
             download="ledgerflow_erp_export.json"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium text-xs transition shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-border bg-card text-foreground hover:bg-muted font-medium text-xs transition shadow-xs cursor-pointer"
             title="Download ERP JSON"
           >
-            <Download className="w-3.5 h-3.5 text-blue-600" />
+            <FileCode size={16} weight="bold" className="text-secondary-foreground" />
             <span>Export JSON</span>
           </a>
           <Link
             href="/upload"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-slate-900 text-white font-medium text-xs hover:bg-slate-800 transition shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs transition shadow-xs cursor-pointer"
           >
-            <Upload className="w-3.5 h-3.5" />
+            <UploadSimple size={15} weight="bold" />
             <span>Upload Invoice</span>
           </Link>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+      {/* Main Table Card */}
+      <div className="rounded-2xl border border-border bg-card shadow-xs overflow-hidden">
         {/* Filter Tabs and Search Bar */}
-        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-1 overflow-x-auto">
+        <div className="p-4 sm:p-5 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition shrink-0 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition shrink-0 cursor-pointer ${
                   activeTab === tab.key
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    ? "bg-primary text-primary-foreground shadow-xs font-semibold"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
                 {tab.label}
@@ -103,76 +123,130 @@ export default function InvoicesListPage() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <MagnifyingGlass
+                size={15}
+                weight="bold"
+                className="text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2"
+              />
               <input
                 type="text"
                 placeholder="Search invoice, vendor, or PO..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-3 py-1.5 rounded-lg border border-slate-300 text-xs w-64 focus:outline-hidden focus:ring-1 focus:ring-slate-900 text-slate-900"
+                className="pl-9 pr-3 py-1.5 rounded-xl border border-border bg-background text-xs w-64 focus:outline-hidden focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <button
               onClick={() => fetchRuns(activeTab)}
-              className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition"
+              className="p-2 rounded-xl border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground transition cursor-pointer"
               title="Refresh"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              <ArrowsClockwise
+                size={15}
+                weight="bold"
+                className={loading ? "animate-spin text-primary" : ""}
+              />
             </button>
           </div>
         </div>
 
         {/* Invoices List Table */}
         {filteredRuns.length === 0 ? (
-          <div className="py-12 text-center text-slate-400 text-sm">
-            {loading ? "Loading runs..." : "No invoices found matching current criteria."}
+          <div className="py-16 text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto text-muted-foreground">
+              <FolderOpen size={24} weight="regular" />
+            </div>
+            <div className="text-sm font-semibold text-foreground">
+              {loading ? "Loading audit runs..." : "No invoices found"}
+            </div>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              No matching records for current filter tab or search keyword.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-medium uppercase text-[10px] tracking-wider">
+              <thead className="bg-muted/40 border-b border-border text-muted-foreground font-medium uppercase text-[10px] tracking-wide">
                 <tr>
-                  <th className="py-3 px-4">Invoice #</th>
-                  <th className="py-3 px-4">Vendor</th>
-                  <th className="py-3 px-4">PO Reference</th>
-                  <th className="py-3 px-4">Total Amount</th>
-                  <th className="py-3 px-4">Submitted At</th>
-                  <th className="py-3 px-4">Decision Status</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-5">Invoice # / Document</th>
+                  <th className="py-3 px-5">Vendor</th>
+                  <th className="py-3 px-5">PO Reference</th>
+                  <th className="py-3 px-5">Total Amount</th>
+                  <th className="py-3 px-5">Submitted At</th>
+                  <th className="py-3 px-5">Decision Status</th>
+                  <th className="py-3 px-5 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {filteredRuns.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50/70 transition">
-                    <td className="py-3 px-4 font-mono font-medium text-slate-900">
-                      {r.invoice_number || (
-                        <span className="text-slate-400 italic">#{r.original_filename.substring(0, 15)}</span>
+                  <tr
+                    key={r.id}
+                    className="hover:bg-muted/30 transition group"
+                  >
+                    <td className="py-3.5 px-5">
+                      {r.invoice_number ? (
+                        <span className="font-mono font-semibold text-foreground text-xs">
+                          {r.invoice_number}
+                        </span>
+                      ) : (
+                        <div
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-mono text-[11px] max-w-[200px]"
+                          title={r.original_filename}
+                        >
+                          <FileText size={13} weight="regular" className="shrink-0" />
+                          <span className="truncate">{r.original_filename}</span>
+                        </div>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-slate-700 font-medium truncate max-w-xs">
-                      {r.vendor?.legal_name || "—"}
+
+                    <td className="py-3.5 px-5 truncate max-w-xs">
+                      {r.vendor?.legal_name ? (
+                        <span className="font-medium text-foreground">
+                          {r.vendor.legal_name}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-muted-foreground italic text-[11px]">
+                          <Buildings size={13} weight="regular" />
+                          <span>Unmatched Vendor</span>
+                        </span>
+                      )}
                     </td>
-                    <td className="py-3 px-4 font-mono text-slate-600">
-                      {r.purchase_order?.po_number || "—"}
+
+                    <td className="py-3.5 px-5">
+                      {r.purchase_order?.po_number ? (
+                        <span className="px-2 py-0.5 rounded-md bg-muted border border-border text-foreground font-mono text-[11px] font-medium">
+                          {r.purchase_order.po_number}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground font-mono">—</span>
+                      )}
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                      {formatCurrency(r.grand_total)}
+
+                    <td className="py-3.5 px-5 font-mono font-semibold text-foreground tabular-nums">
+                      {r.grand_total ? (
+                        formatCurrency(r.grand_total)
+                      ) : (
+                        <span className="text-muted-foreground font-normal">—</span>
+                      )}
                     </td>
-                    <td className="py-3 px-4 text-slate-500">
+
+                    <td className="py-3.5 px-5 text-muted-foreground text-[11px]">
                       {formatDateTime(r.created_at)}
                     </td>
-                    <td className="py-3 px-4">
+
+                    <td className="py-3.5 px-5">
                       <StatusBadge status={r.decision_status || r.processing_state} />
                     </td>
-                    <td className="py-3 px-4 text-right">
+
+                    <td className="py-3.5 px-5 text-right">
                       <Link
                         href={`/runs/${r.id}`}
-                        className="inline-flex items-center gap-1 text-slate-900 hover:text-slate-700 font-medium text-xs hover:underline"
+                        className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-card border border-border hover:bg-muted text-foreground font-medium text-xs transition shadow-2xs cursor-pointer"
                       >
-                        <span>View Run</span>
-                        <ArrowUpRight className="w-3 h-3" />
+                        <span>View</span>
+                        <ArrowUpRight size={13} weight="bold" />
                       </Link>
                     </td>
                   </tr>

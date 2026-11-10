@@ -1,0 +1,221 @@
+/* =============================================================
+   Kashew design tokens: shared theme for all apps
+   Tailwind v4 + shadcn-style semantic tokens.
+   Import once in each app's globals.css:  @import "./theme.css";
+   Source of truth: Kashew globals.css (values copied 1:1).
+   ============================================================= */
+
+:root {
+  /* Warm cream canvas, near-white cards */
+  --background: oklch(0.955 0.015 85);
+  --foreground: oklch(0.22 0.02 75);
+
+  --card: oklch(0.995 0.003 90);
+  --card-foreground: oklch(0.22 0.02 75);
+  --popover: oklch(0.995 0.003 90);
+  --popover-foreground: oklch(0.22 0.02 75);
+
+  /* Deep forest green = brand / CTA */
+  --primary: oklch(0.32 0.06 160);
+  --primary-foreground: oklch(0.98 0.005 90);
+
+  /* Lime highlight */
+  --secondary: oklch(0.8905 0.1208 122.22);
+  --secondary-foreground: oklch(0.28 0.03 160);
+
+  --muted: oklch(0.935 0.012 85);
+  --muted-foreground: oklch(0.5 0.015 75);
+  --accent: oklch(0.94 0.02 100);
+  --accent-foreground: oklch(0.28 0.02 75);
+
+  --destructive: oklch(0.62 0.2 25);
+  --destructive-foreground: oklch(0.98 0.005 90);
+  --success: oklch(52.7% 0.154 150.069);
+  --success-foreground: oklch(0.94 0.01 85);
+
+  --border: oklch(0.915 0.01 85);
+  --input: oklch(0.915 0.01 85);
+  --ring: oklch(0.42 0.06 160);
+
+  --radius: 0.75rem;
+
+  --sidebar: oklch(0.98 0.008 90);
+  --sidebar-foreground: oklch(0.22 0.02 75);
+  --sidebar-primary: oklch(0.32 0.06 160);
+  --sidebar-primary-foreground: oklch(0.98 0.005 90);
+  --sidebar-accent: oklch(0.94 0.02 100);
+  --sidebar-accent-foreground: oklch(0.28 0.02 75);
+  --sidebar-border: oklch(0.915 0.01 85);
+  --sidebar-ring: oklch(0.42 0.06 160);
+
+  /* Charts: coral, forest, lime-gold, plum, sand */
+  --chart-1: oklch(0.68 0.16 35);
+  --chart-2: oklch(0.45 0.06 160);
+  --chart-3: oklch(0.78 0.1 110);
+  --chart-4: oklch(0.72 0.06 300);
+  --chart-5: oklch(0.82 0.1 85);
+
+  /* Status colours */
+  --status-win: oklch(0.42 0.1 160);
+  --status-win-foreground: oklch(0.97 0.01 160);
+  --status-loss: oklch(0.55 0.18 25);
+  --status-loss-foreground: oklch(0.97 0.005 25);
+  --status-proposal: oklch(0.52 0.12 250);
+  --status-proposal-foreground: oklch(0.97 0.005 250);
+  --status-negotiation: oklch(0.62 0.14 75);
+  --status-negotiation-foreground: oklch(0.97 0.005 250);
+  --status-scope: oklch(0.55 0.08 220);
+  --status-scope-foreground: oklch(0.97 0.005 220);
+
+  /* Account-type colours */
+  --type-enterprise: oklch(0.42 0.15 265);
+  --type-enterprise-foreground: oklch(0.97 0.005 265);
+  --type-midmarket: oklch(0.52 0.14 170);
+  --type-midmarket-foreground: oklch(0.97 0.005 170);
+  --type-smb: oklch(0.58 0.16 40);
+  --type-smb-foreground: oklch(0.97 0.005 40);
+  --type-prospect: oklch(0.48 0.13 320);
+  --type-prospect-foreground: oklch(0.97 0.005 320);
+
+  /* Shadows */
+  --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+}
+
+.dark {
+  /* Neutral cool dark (no green/brown tint) */
+  --background: oklch(19.5% 0.008 260);
+  --foreground: oklch(94% 0.006 260);
+  --card: oklch(24.5% 0.008 260);
+  --card-foreground: oklch(94% 0.006 260);
+  --popover: oklch(24.5% 0.008 260);
+  --popover-foreground: oklch(94% 0.006 260);
+
+  --primary: oklch(42.355% 0.07852 160.144);
+  --primary-foreground: oklch(98% 0.005 90);
+  --secondary: oklch(72.039% 0.09747 123.104);
+  --secondary-foreground: oklch(28% 0.03 160);
+
+  --muted: oklch(27% 0.008 260);
+  --muted-foreground: oklch(70% 0.01 260);
+  --accent: oklch(30% 0.015 260);
+  --accent-foreground: oklch(94% 0.006 260);
+
+  --destructive: oklch(58% 0.18 25);
+  --destructive-foreground: oklch(94% 0.006 260);
+  --success: oklch(52.7% 0.154 150.069);
+  --success-foreground: oklch(94% 0.006 260);
+
+  --border: oklch(30% 0.008 260);
+  --input: oklch(30% 0.008 260);
+  --ring: oklch(62% 0.06 160);
+
+  --sidebar: oklch(22% 0.008 260);
+  --sidebar-foreground: oklch(94% 0.006 260);
+  --sidebar-primary: oklch(58% 0.06 160);
+  --sidebar-primary-foreground: oklch(17% 0.008 260);
+  --sidebar-accent: oklch(30% 0.015 260);
+  --sidebar-accent-foreground: oklch(94% 0.006 260);
+  --sidebar-border: oklch(30% 0.008 260);
+  --sidebar-ring: oklch(62% 0.06 160);
+
+  --chart-1: oklch(0.62 0.14 35);
+  --chart-2: oklch(0.55 0.06 160);
+  --chart-3: oklch(0.6 0.07 110);
+  --chart-4: oklch(0.65 0.05 300);
+  --chart-5: oklch(0.68 0.08 85);
+
+  --status-win: oklch(0.55 0.12 160);
+  --status-loss: oklch(0.62 0.18 25);
+  --status-proposal: oklch(0.62 0.12 250);
+  --status-negotiation: oklch(0.72 0.14 75);
+  --status-scope: oklch(0.65 0.08 220);
+
+  --type-enterprise: oklch(0.58 0.15 265);
+  --type-midmarket: oklch(0.62 0.14 170);
+  --type-smb: oklch(0.68 0.16 40);
+  --type-prospect: oklch(0.62 0.13 320);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-status-win: var(--status-win);
+  --color-status-win-foreground: var(--status-win-foreground);
+  --color-status-loss: var(--status-loss);
+  --color-status-loss-foreground: var(--status-loss-foreground);
+  --color-status-proposal: var(--status-proposal);
+  --color-status-proposal-foreground: var(--status-proposal-foreground);
+  --color-status-negotiation: var(--status-negotiation);
+  --color-status-negotiation-foreground: var(--status-negotiation-foreground);
+  --color-status-scope: var(--status-scope);
+  --color-status-scope-foreground: var(--status-scope-foreground);
+
+  --color-type-enterprise: var(--type-enterprise);
+  --color-type-enterprise-foreground: var(--type-enterprise-foreground);
+  --color-type-midmarket: var(--type-midmarket);
+  --color-type-midmarket-foreground: var(--type-midmarket-foreground);
+  --color-type-smb: var(--type-smb);
+  --color-type-smb-foreground: var(--type-smb-foreground);
+  --color-type-prospect: var(--type-prospect);
+  --color-type-prospect-foreground: var(--type-prospect-foreground);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Fustat", ui-sans-serif, system-ui, sans-serif;
+  }
+  button, [role="button"], a { cursor: pointer; }
+
+  /* Brand scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--chart-4); }
+  * { scrollbar-width: thin; scrollbar-color: var(--primary) transparent; }
+}

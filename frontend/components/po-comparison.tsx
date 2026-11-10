@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, CheckCircle2, FileQuestion } from "lucide-react";
+import { Question, Warning, CheckCircle } from "@phosphor-icons/react";
 import { RunDetail } from "@/lib/api";
 import { formatCurrency, cn } from "@/lib/utils";
 
@@ -16,31 +16,44 @@ export function POComparison({ run }: POComparisonProps) {
 
   if (!po) {
     return (
-      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
-        <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-          <FileQuestion className="w-4 h-4 text-amber-500" />
-          <h3 className="font-semibold text-slate-900 text-sm">Purchase Order Reconciliation</h3>
+      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-3.5 transition-colors">
+        <div className="flex items-center gap-2 pb-3 border-b border-border">
+          <Question size={18} weight="bold" className="text-secondary-foreground" />
+          <h3 className="text-base font-semibold text-foreground leading-tight">
+            Purchase Order Reconciliation
+          </h3>
         </div>
 
-        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
-          <p className="font-medium">No purchase order is currently confirmed for this run.</p>
-          <p className="mt-1 text-amber-700">
+        <div className="p-3.5 rounded-xl bg-secondary/15 border border-secondary/35 text-xs text-foreground/90">
+          <p className="font-semibold">No purchase order is currently confirmed for this run.</p>
+          <p className="mt-1 text-muted-foreground">
             A purchase order must be assigned and verified before financial tolerance checks can be determined.
           </p>
         </div>
 
         {candidates.length > 0 && (
           <div className="space-y-2 pt-2">
-            <span className="text-xs font-semibold text-slate-700 block">Suggested Candidates Found:</span>
-            <div className="space-y-1.5">
+            <span className="text-xs font-semibold text-foreground block">
+              Suggested Candidates Found:
+            </span>
+            <div className="space-y-2">
               {candidates.map((cand: any, idx: number) => (
-                <div key={idx} className="p-2.5 rounded-lg border border-slate-200 bg-slate-50 text-xs flex justify-between items-center">
+                <div
+                  key={idx}
+                  className="p-3 rounded-xl border border-border bg-background text-xs flex justify-between items-center"
+                >
                   <div>
-                    <span className="font-mono font-semibold text-slate-900">{cand.po_number}</span>
-                    <span className="text-slate-500 ml-2">Total: {formatCurrency(cand.po_total)}</span>
-                    <span className="block text-[11px] text-slate-500 mt-0.5">{cand.reasons?.join(" • ")}</span>
+                    <span className="font-mono font-semibold text-foreground">
+                      {cand.po_number}
+                    </span>
+                    <span className="text-muted-foreground ml-2">
+                      Total: {formatCurrency(cand.po_total)}
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground mt-0.5">
+                      {cand.reasons?.join(" • ")}
+                    </span>
                   </div>
-                  <span className="text-xs font-mono font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                  <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                     Match Score: {cand.score}
                   </span>
                 </div>
@@ -56,64 +69,80 @@ export function POComparison({ run }: POComparisonProps) {
   const priorCommitted = poBalDetails.prior_committed || "0.00";
   const remainingBefore = poBalDetails.remaining_before || po.remaining_balance || po.po_total;
   const invoiceTotal = poBalDetails.invoice_total || run.grand_total || "0.00";
-  const remainingAfter = poBalDetails.remaining_after || (parseFloat(remainingBefore) - parseFloat(invoiceTotal)).toFixed(2);
+  const remainingAfter =
+    poBalDetails.remaining_after || (parseFloat(remainingBefore) - parseFloat(invoiceTotal)).toFixed(2);
   const isWarning = poBalDetails.tolerance_warning;
+  const isExceeded = parseFloat(remainingAfter) < 0;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+    <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs space-y-4 transition-colors">
+      <div className="flex items-center justify-between pb-3 border-b border-border">
         <div>
-          <h3 className="font-semibold text-slate-900 text-sm">Purchase Order Balance Analysis</h3>
-          <p className="text-xs text-slate-500 font-mono">Associated PO: {po.po_number}</p>
+          <h3 className="text-base font-semibold text-foreground leading-tight">
+            Purchase Order Budget &amp; Tolerance
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Linked to PO: <span className="font-mono font-semibold text-primary">{po.po_number}</span>
+          </p>
         </div>
-        <span className="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-slate-100 text-slate-700">
-          Status: {po.status}
+        <span
+          className={cn(
+            "text-xs px-2.5 py-0.5 rounded-full font-mono font-semibold border",
+            isExceeded
+              ? "bg-destructive/10 text-destructive border-destructive/25"
+              : isWarning
+              ? "bg-secondary/30 text-secondary-foreground border-secondary/40"
+              : "bg-primary/10 text-primary border-primary/25"
+          )}
+        >
+          {isExceeded ? "Exceeded" : isWarning ? "Near Cap" : "Within Balance"}
         </span>
       </div>
 
-      {isWarning && (
-        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
-          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold">Tolerance Warning: </span>
-            Invoice exceeds remaining PO budget but falls within the configured tolerance policy (₹
-            {poBalDetails.allowed_variance}).
-          </div>
-        </div>
-      )}
-
-      {/* Financial Table */}
-      <div className="divide-y divide-slate-100 text-xs">
-        <div className="py-2 flex justify-between">
-          <span className="text-slate-500">PO Approved Total:</span>
-          <span className="font-mono font-semibold text-slate-900">{formatCurrency(poTotal)}</span>
-        </div>
-        <div className="py-2 flex justify-between">
-          <span className="text-slate-500">Previously Committed / Invoiced:</span>
-          <span className="font-mono text-slate-700">{formatCurrency(priorCommitted)}</span>
-        </div>
-        <div className="py-2 flex justify-between bg-slate-50/70 px-2 rounded font-medium">
-          <span className="text-slate-700">Available PO Budget (Before Run):</span>
-          <span className="font-mono font-bold text-slate-900">{formatCurrency(remainingBefore)}</span>
-        </div>
-        <div className="py-2 flex justify-between">
-          <span className="text-slate-500">Current Invoice Total:</span>
-          <span className="font-mono font-semibold text-slate-900">{formatCurrency(invoiceTotal)}</span>
-        </div>
-        <div className="py-2 flex justify-between">
-          <span className="text-slate-500">Allowed Tolerance Cap:</span>
-          <span className="font-mono text-slate-600">
-            {formatCurrency(poBalDetails.allowed_variance || "500.00")} (1% / max ₹500)
+      {/* Financial Comparison Summary Cards */}
+      <div className="grid grid-cols-2 gap-3 text-xs">
+        <div className="p-3 rounded-xl bg-background border border-border">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide block">
+            Total PO Value
+          </span>
+          <span className="font-mono font-bold text-foreground block mt-1 text-sm tabular-nums">
+            {formatCurrency(poTotal)}
+          </span>
+          <span className="text-[10px] text-muted-foreground block mt-0.5">
+            Prior Spent: {formatCurrency(priorCommitted)}
           </span>
         </div>
-        <div className="py-2.5 flex justify-between px-2 rounded bg-slate-900 text-white font-medium mt-1">
-          <span>Projected Balance Remaining:</span>
-          <span
-            className={cn(
-              "font-mono font-bold",
-              parseFloat(remainingAfter) >= 0 ? "text-emerald-400" : "text-rose-400"
-            )}
-          >
+
+        <div className="p-3 rounded-xl bg-background border border-border">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide block">
+            Available Before Invoice
+          </span>
+          <span className="font-mono font-bold text-foreground block mt-1 text-sm tabular-nums">
+            {formatCurrency(remainingBefore)}
+          </span>
+        </div>
+
+        <div className="p-3 rounded-xl bg-background border border-border">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide block">
+            Current Invoice Total
+          </span>
+          <span className="font-mono font-bold text-primary block mt-1 text-sm tabular-nums">
+            {formatCurrency(invoiceTotal)}
+          </span>
+        </div>
+
+        <div
+          className={cn(
+            "p-3 rounded-xl border",
+            isExceeded
+              ? "bg-destructive/5 border-destructive/25 text-destructive"
+              : "bg-primary/5 border-primary/25 text-primary"
+          )}
+        >
+          <span className="block text-[10px] font-medium uppercase tracking-wide opacity-80">
+            Remaining After Approval
+          </span>
+          <span className="font-mono font-bold block mt-1 text-sm tabular-nums">
             {formatCurrency(remainingAfter)}
           </span>
         </div>

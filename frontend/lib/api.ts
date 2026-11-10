@@ -17,6 +17,7 @@ export interface PurchaseOrder {
   po_date: string;
   status: string;
   description: string | null;
+  line_items?: any[] | null;
   remaining_balance?: string | null;
   vendor?: Vendor | null;
 }
@@ -81,6 +82,7 @@ export interface RunSummary {
 
 export interface RunDetail extends RunSummary {
   file_sha256: string;
+  ai_summary?: string | null;
   file_size_bytes: number;
   extracted_data: Record<string, unknown> | null;
   stages: RunStage[];
