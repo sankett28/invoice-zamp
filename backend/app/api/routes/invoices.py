@@ -1,3 +1,4 @@
+from app.services.cache_service import cache
 import io
 import uuid
 import zipfile
