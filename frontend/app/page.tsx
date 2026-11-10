@@ -105,11 +105,17 @@ export default function OverviewPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-2">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-[1.12]">
-            Overview
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-[1.12]">
+              Overview
+            </h1>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium bg-primary/10 text-primary border border-primary/20">
+              <span className={`w-1.5 h-1.5 rounded-full ${loading ? "bg-amber-500 animate-ping" : "bg-emerald-500"}`} />
+              <span>{loading ? "Syncing database..." : `Supabase Live · ${totalCount} Runs`}</span>
+            </div>
+          </div>
           <p className="text-foreground/70 text-sm sm:text-base mt-1.5 leading-relaxed">
-            AP automation engine across all connected vendors. {reviewCount + blockedCount} invoices requiring attention.
+            Invoice processing across all connected vendors. {reviewCount + blockedCount} {reviewCount + blockedCount === 1 ? "invoice" : "invoices"} need your attention.
           </p>
         </div>
 
@@ -170,59 +176,91 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* Kashew Stat Band with 100% Real Database Metrics */}
+      {/* Kashew Stat Band with 100% Real Database Metrics & Smooth Skeleton Loaders */}
       <div className="rounded-3xl bg-primary text-white p-7 sm:p-9 shadow-xs relative overflow-hidden [background-image:linear-gradient(rgba(255,255,255,.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.05)_1px,transparent_1px)] [background-size:80px_80px]">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 divide-y sm:divide-y-0 sm:divide-x divide-white/10 relative z-10">
           {/* TOTAL RUNS */}
           <div className="space-y-1.5 sm:px-4 first:pl-0">
-            <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none tabular-nums">
-              {totalCount}
-            </div>
+            {loading ? (
+              <div className="h-10 sm:h-12 w-20 rounded-xl bg-white/20 animate-pulse my-0.5" />
+            ) : (
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none tabular-nums">
+                {totalCount}
+              </div>
+            )}
             <div className="text-[11px] font-semibold uppercase tracking-widest text-white/50 pt-1">
               TOTAL RUNS
             </div>
-            <div className="text-xs text-white/70">
-              {totalCount === 1 ? "1 invoice run in database" : `${totalCount} invoice runs in database`}
-            </div>
+            {loading ? (
+              <div className="h-3.5 w-32 rounded bg-white/15 animate-pulse mt-1" />
+            ) : (
+              <div className="text-xs text-white/70">
+                {totalCount === 1 ? "1 invoice run in database" : `${totalCount} invoice runs in database`}
+              </div>
+            )}
           </div>
 
           {/* READY FOR APPROVAL */}
           <div className="space-y-1.5 sm:px-4 pt-4 sm:pt-0">
-            <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none text-secondary tabular-nums">
-              {readyCount}
-            </div>
+            {loading ? (
+              <div className="h-10 sm:h-12 w-16 rounded-xl bg-secondary/30 animate-pulse my-0.5" />
+            ) : (
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none text-secondary tabular-nums">
+                {readyCount}
+              </div>
+            )}
             <div className="text-[11px] font-semibold uppercase tracking-widest text-white/50 pt-1">
               READY FOR APPROVAL
             </div>
-            <div className="text-xs text-white/70">
-              Passed deterministic rules
-            </div>
+            {loading ? (
+              <div className="h-3.5 w-28 rounded bg-white/15 animate-pulse mt-1" />
+            ) : (
+              <div className="text-xs text-white/70">
+                Cleared automatically
+              </div>
+            )}
           </div>
 
           {/* REVIEW REQUIRED */}
           <div className="space-y-1.5 sm:px-4 pt-4 sm:pt-0">
-            <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none text-white tabular-nums">
-              {reviewCount}
-            </div>
+            {loading ? (
+              <div className="h-10 sm:h-12 w-16 rounded-xl bg-white/20 animate-pulse my-0.5" />
+            ) : (
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none text-white tabular-nums">
+                {reviewCount}
+              </div>
+            )}
             <div className="text-[11px] font-semibold uppercase tracking-widest text-white/50 pt-1">
               REVIEW REQUIRED
             </div>
-            <div className="text-xs text-white/70">
-              Awaiting human sign-off
-            </div>
+            {loading ? (
+              <div className="h-3.5 w-32 rounded bg-white/15 animate-pulse mt-1" />
+            ) : (
+              <div className="text-xs text-white/70">
+                Awaiting human sign-off
+              </div>
+            )}
           </div>
 
           {/* BLOCKED */}
           <div className="space-y-1.5 sm:px-4 pt-4 sm:pt-0">
-            <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none text-[oklch(0.85_0.15_25)] tabular-nums">
-              {blockedCount}
-            </div>
+            {loading ? (
+              <div className="h-10 sm:h-12 w-16 rounded-xl bg-destructive/30 animate-pulse my-0.5" />
+            ) : (
+              <div className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-none text-[oklch(0.85_0.15_25)] tabular-nums">
+                {blockedCount}
+              </div>
+            )}
             <div className="text-[11px] font-semibold uppercase tracking-widest text-white/50 pt-1">
               BLOCKED
             </div>
-            <div className="text-xs text-white/70">
-              Duplicates or policy failures
-            </div>
+            {loading ? (
+              <div className="h-3.5 w-32 rounded bg-white/15 animate-pulse mt-1" />
+            ) : (
+              <div className="text-xs text-white/70">
+                Requires investigation
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -243,44 +281,62 @@ export default function OverviewPage() {
                     </h3>
                   </div>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-primary/10 text-primary border border-primary/20">
-                    REAL ENGINE
+                    LIVE
                   </span>
                 </div>
 
-                <div className="flex items-center gap-5 pt-2">
-                  <div className="relative w-20 h-20 rounded-full border-4 border-muted border-t-primary border-r-primary flex flex-col items-center justify-center shrink-0">
-                    <span className="text-xl font-extrabold text-foreground tracking-tight leading-none">
-                      {totalCount > 0 ? `${Math.round((readyCount / totalCount) * 100)}%` : "0%"}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground uppercase font-semibold mt-0.5">
-                      Ready
-                    </span>
+                {loading ? (
+                  <div className="flex items-center gap-5 pt-2 animate-pulse">
+                    <div className="w-20 h-20 rounded-full bg-muted/60 shrink-0 border-4 border-muted" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-3 w-28 rounded bg-muted" />
+                      <div className="h-3 w-full rounded bg-muted/70" />
+                      <div className="h-3 w-4/5 rounded bg-muted/70" />
+                      <div className="h-3 w-3/4 rounded bg-muted/70" />
+                    </div>
                   </div>
+                ) : (
+                  <div className="flex items-center gap-5 pt-2">
+                    <div className="relative w-20 h-20 rounded-full border-4 border-muted border-t-primary border-r-primary flex flex-col items-center justify-center shrink-0">
+                      <span className="text-xl font-extrabold text-foreground tracking-tight leading-none">
+                        {totalCount > 0 ? `${Math.round((readyCount / totalCount) * 100)}%` : "0%"}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground uppercase font-semibold mt-0.5">
+                        Ready
+                      </span>
+                    </div>
 
-                  <div className="space-y-1.5 text-xs flex-1">
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Deterministic Checks
-                    </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-foreground">Passed clean</span>
-                      <span className="font-mono font-bold text-primary">{readyCount}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-foreground">Tolerance warnings</span>
-                      <span className="font-mono font-bold text-secondary-foreground">{reviewCount}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-foreground">Critical violations</span>
-                      <span className="font-mono font-bold text-destructive">{blockedCount}</span>
+                    <div className="space-y-1.5 text-xs flex-1">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Verification Checks
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-foreground">Cleared automatically</span>
+                        <span className="font-mono font-bold text-primary">{readyCount}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-foreground">Needs review</span>
+                        <span className="font-mono font-bold text-secondary-foreground">{reviewCount}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-foreground">Hard stops</span>
+                        <span className="font-mono font-bold text-destructive">{blockedCount}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Straight-through rate</span>
+                <span>Auto-cleared</span>
                 <span className="font-semibold text-primary">
-                  {totalCount > 0 ? `${Math.round((readyCount / totalCount) * 100)}% automated` : "No data yet"}
+                  {loading ? (
+                    <span className="inline-block h-3 w-16 rounded bg-muted animate-pulse" />
+                  ) : totalCount > 0 ? (
+                    `${Math.round((readyCount / totalCount) * 100)}% of invoices`
+                  ) : (
+                    "No data yet"
+                  )}
                 </span>
               </div>
             </div>
@@ -295,63 +351,90 @@ export default function OverviewPage() {
                       Value in queue
                     </h3>
                   </div>
-                  <span className="text-sm font-bold font-mono text-foreground tabular-nums">
-                    {formatCurrency(totalQueueValue)}
-                  </span>
+                  {loading ? (
+                    <div className="h-5 w-24 rounded bg-muted animate-pulse" />
+                  ) : (
+                    <span className="text-sm font-bold font-mono text-foreground tabular-nums">
+                      {formatCurrency(totalQueueValue)}
+                    </span>
+                  )}
                 </div>
 
-                <div className="space-y-3 pt-1 text-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="w-16 font-medium text-foreground">Ready</span>
-                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-300"
-                        style={{
-                          width: totalQueueValue > 0 ? `${Math.min(100, (readyValue / totalQueueValue) * 100)}%` : "0%",
-                        }}
-                      />
+                {loading ? (
+                  <div className="space-y-3.5 pt-2 animate-pulse">
+                    <div className="space-y-1">
+                      <div className="h-2.5 w-full rounded-full bg-muted/70" />
+                      <div className="h-2 w-1/3 rounded bg-muted/50" />
                     </div>
-                    <span className="w-20 text-right font-mono font-semibold text-primary">
-                      {formatCurrency(readyValue)}
-                    </span>
+                    <div className="space-y-1">
+                      <div className="h-2.5 w-full rounded-full bg-muted/70" />
+                      <div className="h-2 w-1/3 rounded bg-muted/50" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="h-2.5 w-full rounded-full bg-muted/70" />
+                      <div className="h-2 w-1/3 rounded bg-muted/50" />
+                    </div>
                   </div>
+                ) : (
+                  <div className="space-y-3 pt-1 text-xs">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="w-16 font-medium text-foreground">Ready</span>
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{
+                            width: totalQueueValue > 0 ? `${Math.min(100, (readyValue / totalQueueValue) * 100)}%` : "0%",
+                          }}
+                        />
+                      </div>
+                      <span className="w-20 text-right font-mono font-semibold text-primary">
+                        {formatCurrency(readyValue)}
+                      </span>
+                    </div>
 
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="w-16 font-medium text-foreground">Review</span>
-                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full bg-secondary rounded-full transition-all duration-300"
-                        style={{
-                          width: totalQueueValue > 0 ? `${Math.min(100, (reviewValue / totalQueueValue) * 100)}%` : "0%",
-                        }}
-                      />
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="w-16 font-medium text-foreground">Review</span>
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-secondary rounded-full transition-all duration-300"
+                          style={{
+                            width: totalQueueValue > 0 ? `${Math.min(100, (reviewValue / totalQueueValue) * 100)}%` : "0%",
+                          }}
+                        />
+                      </div>
+                      <span className="w-20 text-right font-mono font-semibold text-secondary-foreground">
+                        {formatCurrency(reviewValue)}
+                      </span>
                     </div>
-                    <span className="w-20 text-right font-mono font-semibold text-secondary-foreground">
-                      {formatCurrency(reviewValue)}
-                    </span>
-                  </div>
 
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="w-16 font-medium text-foreground">Blocked</span>
-                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full bg-destructive rounded-full transition-all duration-300"
-                        style={{
-                          width: totalQueueValue > 0 ? `${Math.min(100, (blockedValue / totalQueueValue) * 100)}%` : "0%",
-                        }}
-                      />
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="w-16 font-medium text-foreground">Blocked</span>
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-destructive rounded-full transition-all duration-300"
+                          style={{
+                            width: totalQueueValue > 0 ? `${Math.min(100, (blockedValue / totalQueueValue) * 100)}%` : "0%",
+                          }}
+                        />
+                      </div>
+                      <span className="w-20 text-right font-mono font-semibold text-destructive">
+                        {formatCurrency(blockedValue)}
+                      </span>
                     </div>
-                    <span className="w-20 text-right font-mono font-semibold text-destructive">
-                      {formatCurrency(blockedValue)}
-                    </span>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="mt-4 pt-3 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Working capital active</span>
+                <span>Total invoice value</span>
                 <span className="font-semibold text-foreground">
-                  {totalQueueValue > 0 ? formatCurrency(totalQueueValue) : "₹0.00 in queue"}
+                  {loading ? (
+                    <span className="inline-block h-3 w-20 rounded bg-muted animate-pulse" />
+                  ) : totalQueueValue > 0 ? (
+                    formatCurrency(totalQueueValue)
+                  ) : (
+                    "₹0.00 in queue"
+                  )}
                 </span>
               </div>
             </div>
@@ -363,15 +446,28 @@ export default function OverviewPage() {
                   <div className="flex items-center gap-2">
                     <Clock size={18} weight="bold" className="text-primary" />
                     <h3 className="text-base font-semibold text-foreground">
-                      Live audit stream
+                      Recent invoices
                     </h3>
                   </div>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Latest Activity
+                    Latest
                   </span>
                 </div>
 
-                {recentRuns.length > 0 ? (
+                {loading ? (
+                  <div className="space-y-3 pt-1 animate-pulse">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-3 pb-2 border-b border-border/50 last:border-0">
+                        <div className="w-6 h-6 rounded-full bg-muted shrink-0" />
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="h-3.5 w-32 rounded bg-muted" />
+                          <div className="h-2.5 w-24 rounded bg-muted/70" />
+                        </div>
+                        <div className="h-3 w-10 rounded bg-muted shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                ) : recentRuns.length > 0 ? (
                   <div className="space-y-2.5 text-xs">
                     {recentRuns.map((r) => {
                       const isReady = r.decision_status === "READY_FOR_AP_APPROVAL";
@@ -419,8 +515,10 @@ export default function OverviewPage() {
               </div>
 
               <div className="mt-3 pt-2.5 border-t border-border flex items-center justify-between text-[11px]">
-                <span className="text-muted-foreground">Engine Status</span>
-                <span className="font-mono font-semibold text-primary">Connected to Database</span>
+                <span className="text-muted-foreground">Showing last {recentRuns.length || 3} invoices</span>
+                <Link href="/invoices" className="font-semibold text-primary hover:underline">
+                  View all →
+                </Link>
               </div>
             </div>
           </div>
@@ -443,7 +541,7 @@ export default function OverviewPage() {
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Real database exceptions, line-item price variances, missing POs, and duplicate alerts
+                    Invoices flagged for missing POs, budget overruns, or duplicate submissions
                   </p>
                 </div>
               </div>
@@ -511,7 +609,40 @@ export default function OverviewPage() {
             </div>
 
             {/* BENTO GRID OF ATTENTION CARDS */}
-            {filteredAttention.length > 0 ? (
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="p-5 rounded-2xl border border-border bg-card shadow-xs space-y-4 animate-pulse relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-muted" />
+                    <div className="flex items-start justify-between gap-3 pt-1">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-muted shrink-0" />
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="h-4 w-32 rounded bg-muted" />
+                          <div className="h-3 w-20 rounded bg-muted/70" />
+                        </div>
+                      </div>
+                      <div className="h-5 w-16 rounded-full bg-muted shrink-0" />
+                    </div>
+                    <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-2">
+                      <div className="h-3 w-24 rounded bg-muted" />
+                      <div className="h-2.5 w-full rounded bg-muted/60" />
+                      <div className="h-2.5 w-4/5 rounded bg-muted/60" />
+                    </div>
+                    <div className="pt-3 border-t border-border flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="h-2.5 w-16 rounded bg-muted/60" />
+                        <div className="h-5 w-24 rounded bg-muted" />
+                      </div>
+                      <div className="h-7 w-28 rounded-xl bg-muted" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredAttention.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4.5">
                 {filteredAttention.map((r) => {
                   const initials = (r.vendor?.legal_name || r.original_filename || "IN")
@@ -631,7 +762,7 @@ export default function OverviewPage() {
                 </h4>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                   {runs.length === 0
-                    ? "No invoices have been ingested into the system yet. Upload an invoice to execute verification."
+                    ? "No invoices have been submitted yet. Upload an invoice to get started."
                     : "All invoices in this filter have been verified or resolved."}
                 </p>
                 {bentoSearch && (
@@ -662,7 +793,22 @@ export default function OverviewPage() {
                 </span>
               </div>
 
-              {topVendor ? (
+              {loading ? (
+                <div className="space-y-3 pt-1 animate-pulse">
+                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-muted shrink-0" />
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="h-3.5 w-36 rounded bg-muted" />
+                      <div className="h-2.5 w-24 rounded bg-muted/70" />
+                    </div>
+                  </div>
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    <div className="h-3 w-28 rounded bg-muted" />
+                    <div className="h-2.5 w-full rounded bg-muted/60" />
+                    <div className="h-2.5 w-4/5 rounded bg-muted/60" />
+                  </div>
+                </div>
+              ) : topVendor ? (
                 <>
                   <div className="flex items-center gap-3 p-3.5 rounded-xl bg-background border border-border">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 text-primary font-bold text-xs flex items-center justify-center shrink-0">
@@ -723,38 +869,49 @@ export default function OverviewPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-3">
-                  <div className="p-3 rounded-xl bg-background border border-border space-y-1">
-                    <div className="text-lg font-bold font-mono text-foreground truncate">
-                      {formatCurrency(totalQueueValue)}
-                    </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Queue Volume</div>
+                {loading ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-3 animate-pulse">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="p-3 rounded-xl bg-muted/30 border border-border space-y-2 h-16">
+                        <div className="h-4 w-20 rounded bg-muted" />
+                        <div className="h-2.5 w-14 rounded bg-muted/70" />
+                      </div>
+                    ))}
                   </div>
-                  <div className="p-3 rounded-xl bg-background border border-border space-y-1">
-                    <div className="text-lg font-bold font-mono text-primary">
-                      {totalCount > 0 ? `${Math.round((readyCount / totalCount) * 100)}%` : "0%"}
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-3">
+                    <div className="p-3 rounded-xl bg-background border border-border space-y-1">
+                      <div className="text-lg font-bold font-mono text-foreground truncate">
+                        {formatCurrency(totalQueueValue)}
+                      </div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Queue Volume</div>
                     </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Auto-match rate</div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-background border border-border space-y-1">
-                    <div className="text-lg font-bold font-mono text-foreground truncate">
-                      {totalCount > 0 && totalQueueValue > 0 ? formatCurrency(totalQueueValue / totalCount) : "₹0.00"}
+                    <div className="p-3 rounded-xl bg-background border border-border space-y-1">
+                      <div className="text-lg font-bold font-mono text-primary">
+                        {totalCount > 0 ? `${Math.round((readyCount / totalCount) * 100)}%` : "0%"}
+                      </div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Auto-match rate</div>
                     </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Avg invoice</div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-background border border-border space-y-1">
-                    <div className="text-lg font-bold font-mono text-secondary-foreground">
-                      {totalCount}
+                    <div className="p-3 rounded-xl bg-background border border-border space-y-1">
+                      <div className="text-lg font-bold font-mono text-foreground truncate">
+                        {totalCount > 0 && totalQueueValue > 0 ? formatCurrency(totalQueueValue / totalCount) : "₹0.00"}
+                      </div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Avg invoice</div>
                     </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total Ingested</div>
+                    <div className="p-3 rounded-xl bg-background border border-border space-y-1">
+                      <div className="text-lg font-bold font-mono text-secondary-foreground">
+                        {totalCount}
+                      </div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Total Ingested</div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck size={14} weight="bold" className="text-primary" />
-                  <span>Durable idempotency &amp; ledger lock active</span>
+                  <span>All audit records securely saved</span>
                 </span>
                 <Link href="/vendors" className="font-semibold text-primary hover:underline">
                   Procurement Directory →
@@ -772,7 +929,7 @@ export default function OverviewPage() {
                 All Invoices &amp; Audit Runs ({runs.length})
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Full durable audit log of all ingested invoice documents, decisions, and sign-offs
+                Complete record of all submitted invoices, decisions, and reviewer sign-offs
               </p>
             </div>
             <Link
@@ -798,7 +955,19 @@ export default function OverviewPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {runs.map((r) => (
+                {loading ? (
+                  [1, 2, 3, 4, 5].map((i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="py-4 px-6"><div className="h-4 w-28 rounded bg-muted" /></td>
+                      <td className="py-4 px-6"><div className="h-4 w-36 rounded bg-muted" /></td>
+                      <td className="py-4 px-6"><div className="h-4 w-20 rounded bg-muted" /></td>
+                      <td className="py-4 px-6"><div className="h-4 w-24 rounded bg-muted" /></td>
+                      <td className="py-4 px-6"><div className="h-4 w-28 rounded bg-muted" /></td>
+                      <td className="py-4 px-6"><div className="h-5 w-20 rounded-full bg-muted" /></td>
+                      <td className="py-4 px-6 text-right"><div className="h-7 w-16 rounded-xl bg-muted ml-auto" /></td>
+                    </tr>
+                  ))
+                ) : runs.map((r) => (
                   <tr key={r.id} className="hover:bg-muted/30 transition group">
                     <td className="py-3.5 px-6 font-mono font-semibold text-foreground">
                       {r.invoice_number || (
@@ -835,7 +1004,7 @@ export default function OverviewPage() {
                     </td>
                   </tr>
                 ))}
-                {runs.length === 0 && (
+                {!loading && runs.length === 0 && (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-xs text-muted-foreground">
                       No invoice records found in the database.

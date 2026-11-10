@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import "./globals.css";
-import { Sidebar } from "@/components/navbar";
-import { Header } from "@/components/header";
+import { AppShell } from "@/components/app-shell";
 
 export const metadata: Metadata = {
   title: "LedgerFlow — Accounts Payable Invoice Automation",
@@ -39,18 +38,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="bg-background text-foreground min-h-screen antialiased flex selection:bg-secondary selection:text-secondary-foreground">
-        <Suspense
-          fallback={
-            <aside className="w-64 border-r border-border bg-sidebar min-h-screen" />
-          }
-        >
-          <Sidebar />
+      <body className="bg-background text-foreground min-h-screen antialiased selection:bg-secondary selection:text-secondary-foreground font-sans">
+        <Suspense fallback={<div className="min-h-screen bg-background" />}>
+          <AppShell>{children}</AppShell>
         </Suspense>
-        <div className="flex-1 overflow-y-auto min-h-screen flex flex-col bg-background">
-          <Header />
-          <main className="flex-1 p-6 lg:p-10">{children}</main>
-        </div>
       </body>
     </html>
   );
