@@ -18,7 +18,7 @@ async def list_vendors(db: AsyncSession = Depends(get_db)):
 
     stmt = select(Vendor).order_by(Vendor.vendor_code)
     res = await db.execute(stmt)
-    vendors = res.scalars().all()
+    vendors = [VendorResponse.model_validate(v) for v in res.scalars().all()]
     # Cache for 120 seconds
     cache.set("vendors:all", vendors, ttl_seconds=120)
     return vendors
