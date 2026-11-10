@@ -57,7 +57,7 @@ async def list_runs(
         return cached
 
     result = await db.execute(stmt)
-    runs = result.scalars().all()
+    runs = [RunSummary.model_validate(r) for r in result.scalars().all()]
     cache.set(cache_key, runs, ttl_seconds=10)
     return runs
 
