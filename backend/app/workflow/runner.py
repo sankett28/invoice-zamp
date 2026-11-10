@@ -333,8 +333,8 @@ class WorkflowRunner:
                 po_rem_str = str(po_balance_data.get("remaining_before")) if po_balance_data else None
                 po_rem_after_str = str(po_balance_data.get("remaining_after")) if po_balance_data else None
 
-                # Use fast deterministic summary (0ms, no external LLM latency or token spend)
-                ai_summary = self.llm_extractor._build_deterministic_summary(
+                # Generate AI Executive Briefing / Summary (with clean bullet-pointed root causes)
+                ai_summary = await self.llm_extractor.generate_run_summary(
                     vendor_name=v_name,
                     invoice_number=run.invoice_number,
                     grand_total=str(run.grand_total) if run.grand_total else None,

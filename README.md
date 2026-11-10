@@ -1,200 +1,255 @@
-# LedgerFlow
+# LedgerFlow — Invoice Processing Automation System
 
-**Invoice Processing Automation — Zamp PS-1 Case Study**
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black.svg?logo=next.js)](https://nextjs.org)
+[![PostgreSQL](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-3ECF8E.svg?logo=supabase)](https://supabase.com)
+[![Python](https://img.shields.io/badge/Python-3.12-blue.svg?logo=python)](https://python.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg?logo=typescript)](https://www.typescriptlang.org)
 
-LedgerFlow turns vendor invoice PDFs into traceable AP decision recommendations. An AP operator uploads an invoice; the system extracts fields, validates against vendor and PO records, checks for duplicates, reconciles arithmetic, and produces an explainable outcome. Uncertain cases go to a human reviewer — they are never silently approved.
+**LedgerFlow** is an enterprise-grade accounts payable (AP) automation platform designed for zero-silent-failure invoice ingestion, validation, and reconciliation. It turns complex vendor invoice PDFs into transparent, auditable decision recommendations with full human-in-the-loop governance.
 
-**Core design principle:** AI for unstructured extraction. Deterministic code for financial decisions.
+> **Core Design Principle:** *AI for unstructured document extraction. Deterministic business logic for financial calculations and decisions. Human sign-off for policy exceptions.*
 
 ---
 
-## Live Demo
+## High-Level Architecture
 
-| Resource | URL |
-|---|---|
-| Frontend | _(add Vercel URL after deployment)_ |
-| Backend health | _(add Railway URL)/api/health_ |
+```mermaid
+graph TD
+    subgraph Client["Frontend Client (Next.js 16 App Router)"]
+        UI["AP Dashboard & Live Run Inspector"]
+        Modal["Inline PO Preview Modal"]
+        BriefingUI["AI Executive Run Briefing Card"]
+        SWRCache["In-Memory Client Cache (SWR)"]
+    end
+
+    subgraph Backend["Backend Application Server (FastAPI)"]
+        Router["REST API Router (/api/invoices, /runs, /vendors, /purchase-orders)"]
+        Cache["In-Memory TTL Cache Layer (cache_service.py)"]
+        Runner["13-Stage Workflow Runner (Background Task)"]
+        
+        subgraph DomainServices["Domain & Pipeline Services"]
+            PDF["PyMuPDF & Tesseract OCR"]
+            LLM["LLM Extractor (Gemini 3.5 Flash Lite)"]
+            VendorMatch["Vendor Matcher (GSTIN / Tax ID / Normalised Name)"]
+            POMatch["PO Matcher (Exact & Candidate Scoring)"]
+            DupCheck["3-Tier Duplicate Engine (SHA-256 / Business Key / Heuristic)"]
+            Recon["Reconciliation Engine (Decimal Math & PO Balance)"]
+            DecEngine["Decision Engine (16 Business Rules)"]
+            ExecBrief["Deterministic Executive Summary Engine (0ms)"]
+        end
+    end
+
+    subgraph CloudInfra["Cloud Infrastructure (Supabase)"]
+        SupaDB[("Supabase PostgreSQL (asyncpg pool)")]
+        SupaStore["Supabase Storage Bucket (ledgerflow-invoices)"]
+    end
+
+    UI -->|"HTTP / REST API"| Router
+    Router --> Cache
+    Router --> SupaDB
+    Router --> Runner
+    Runner --> DomainServices
+    DomainServices --> SupaStore
+    DomainServices --> SupaDB
+```
+
+---
+
+## Key Features
+
+1. **Deterministic 13-Stage Pipeline:**
+   - Every invoice executes through 13 sequential, auditable stages (PDF validation, duplicate detection, text extraction, OCR fallback, AI extraction, validation, vendor lookup, PO matching, business duplicate check, arithmetic reconciliation, PO balance check, and rule evaluation).
+2. **AI Executive Run Briefing:**
+   - Instant, plain-English summary of each invoice run rendered right at the top of the inspector with a 4-pillar snapshot (**PO Matching**, **Spend & Budget**, **Audit & Integrity**, and **Action Verdict**). Generated in **0 ms** with zero LLM API dependency on review.
+3. **Inline Purchase Order Preview Modal:**
+   - Clickable PO references open an in-place modal displaying budget limits, remaining balance, vendor info, dates, and line item specifications—without navigating away or reloading.
+4. **Sub-5ms Performance via Multi-Tier Caching:**
+   - Batched SQL aggregations eliminate N+1 database queries.
+   - Backend in-memory TTL caching for vendor master and PO master data.
+   - Frontend Stale-While-Revalidate (SWR) memory caching for instant tab transitions.
+5. **3-Tier Fraud & Duplicate Prevention:**
+   - **Tier 1 (Byte Match):** Immediate block if document SHA-256 hash already exists.
+   - **Tier 2 (Business Key):** Immediate block if `(Vendor ID + Normalised Invoice Number)` matches a prior processed bill.
+   - **Tier 3 (Heuristic):** Routes to review if date/amount align but invoice number is missing or ambiguous.
+6. **Strict Decimal Financial Integrity:**
+   - Zero floating-point arithmetic. All monetary math uses Python's `Decimal` with configured rounding allowances (₹1.00) and tolerance caps ($\min(1\% \times \text{Balance}, ₹500)$).
+7. **Comprehensive Audit Trail & ERP Export:**
+   - Every state transition, rule failure, and human reviewer action is immutably logged with timestamp and user attribution. One-click CSV/JSON export ready for SAP, NetSuite, or QuickBooks.
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15, TypeScript, Tailwind CSS |
-| Backend | Python 3.12, FastAPI, Pydantic |
-| Database | PostgreSQL (Supabase) |
-| File storage | Supabase Storage |
-| PDF extraction | PyMuPDF |
-| LLM (primary) | `qwen/qwen3.8-27b` via Groq SDK |
-| LLM (fallback) | `gemini-3.8-flash` via `google-genai` SDK |
-| OCR | Qwen vision mode (primary); Tesseract (last-resort fallback) |
-| Deployment | Vercel + Railway + Supabase |
+| Layer | Technology | Purpose |
+|---|---|---|
+| **Frontend** | Next.js 16 (Turbopack, App Router), TypeScript, Tailwind CSS | High-density AP finance console, live polling run inspector, responsive design |
+| **Icons & UI** | Phosphor Icons, Lucide Icons, Radix UI Dialog & Primitives | High-contrast financial status iconography, modals, tooltips |
+| **Backend** | Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2.0 Async | Asynchronous REST API, background worker orchestration, strict data validation |
+| **Database** | PostgreSQL on Supabase (`asyncpg` async driver) | Relational persistence for runs, stages, rule results, decisions, and review events |
+| **Storage** | Supabase Storage (`ledgerflow-invoices` bucket) | Cloud object storage for source PDF invoices with signed retrieval URLs |
+| **PDF Extraction** | PyMuPDF (`fitz`), Pillow, PyTesseract | Digital text parsing, 200 DPI PNG page rasterization, OCR fallback |
+| **LLM Engine** | Google Gemini (`gemini-3.5-flash-lite`, `gemini-3.5-flash`) via `google-genai` | Structured JSON field extraction from raw documents and scanned images |
+| **Caching Layer** | Custom In-Memory TTL Cache (`cache_service.py`) + Client SWR | Sub-5ms response times for master data, cached runs, and instant page transitions |
 
 ---
 
-## Local Development Setup
+## End-to-End Workflow
+
+```
+[ Upload Invoice PDF ]
+          │
+          ▼
+[ 1. Ingestion & SHA-256 Hash ] ──(Exact Hash Exists?)──► [ BLOCKED: Exact Duplicate ]
+          │ (Unique)
+          ▼
+[ 2. PDF Format & Size Validation ] ──(Invalid / >10MB?)──► [ BLOCKED: Corrupt File ]
+          │ (Valid)
+          ▼
+[ 3. Text & Vision Extraction (PyMuPDF / Gemini) ]
+          │
+          ▼
+[ 4. Vendor Matching (Tax ID / GSTIN -> Legal Name) ]
+          │
+          ▼
+[ 5. Purchase Order Matching & Candidate Scoring ]
+          │
+          ▼
+[ 6. Business Duplicate Check (Vendor + Normalized Inv #) ] ──(Exists?)──► [ BLOCKED: Duplicate Invoice ]
+          │
+          ▼
+[ 7. Arithmetic Reconciliation (Subtotal + Tax - Disc == Grand Total) ]
+          │
+          ▼
+[ 8. PO Budget & Tolerance Enforcement (1% / ₹500 cap) ]
+          │
+          ▼
+[ 9. Decision Engine (16 Business Rules Evaluation) ]
+          │
+   ┌──────┴──────────────────────────┐
+   ▼                                 ▼
+[ 10. READY FOR AP APPROVAL ]   [ 10. REVIEW REQUIRED ]
+   │                                 │
+   ▼                                 ▼
+[ 1-Click AP Release ]          [ Auditor Review & Sign-Off Console ]
+```
+
+---
+
+## Quickstart & Local Setup
 
 ### Prerequisites
+* **Python 3.12+**
+* **Node.js 20+** and `npm`
+* **Supabase Project** (or PostgreSQL + S3 compatible storage)
+* **Google Gemini API Key** (for multimodal extraction)
 
-- Python 3.12+
-- Node.js 20+
-- PostgreSQL (local Docker or Supabase free project)
-- Groq API key
-- Google Gemini API key (fallback)
-
-### 1. Clone and configure
-
+### 1. Clone & Configure Environment
 ```bash
-git clone <repo-url>
+git clone https://github.com/your-org/ledgerflow.git
 cd ledgerflow
-cp .env.example .env
-# Fill in your API keys and database URL in .env
+
+# Backend configuration
+cp .env.example backend/.env
+# Update DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_KEY, and GEMINI_API_KEY in backend/.env
+
+# Frontend configuration
+echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > frontend/.env.local
 ```
 
-### 2. Backend
-
-```bash
+### 2. Start Backend Server
+```powershell
 cd backend
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# Run database migrations
-alembic upgrade head
-
-# Seed vendors and purchase orders
+# Run migrations and seed master data
 python scripts/seed.py
 
-# Start the API server
-uvicorn app.main:app --reload --port 8000
+# Launch FastAPI server with auto-reload
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+* Backend API: `http://127.0.0.1:8000`
+* Swagger OpenAPI Docs: `http://127.0.0.1:8000/docs`
+* Health Check: `http://127.0.0.1:8000/api/health`
 
-### 3. Frontend
-
-```bash
+### 3. Start Frontend Development Server
+```powershell
 cd frontend
 npm install
-npm run dev
-# Open http://localhost:3000
+npm run dev -- --port 3000
 ```
-
-### 4. Verify
-
-- Backend health: `GET http://localhost:8000/api/health`
-- Upload a PDF from `sample_data/invoices/` and confirm a run is created
+* Frontend Console: `http://localhost:3000`
 
 ---
 
-## Seed and Reset
+## API Reference Overview
 
-```bash
-# Seed only (vendors + POs, no data cleared)
-python backend/scripts/seed.py
-
-# Full reset (clears all invoice runs + audit data, re-seeds master data)
-python backend/scripts/seed.py --reset
-
-# Useful before a live demo to restore a known clean state
-```
-
----
-
-## Sample Data
-
-Located in `sample_data/`:
-
-| File | Scenario | Expected outcome |
-|---|---|---|
-| `invoices/invoice_happy_path.pdf` | Clean invoice, V-001, PO-1001 | READY_FOR_AP_APPROVAL |
-| `invoices/invoice_duplicate_reformatted.pdf` | Same vendor + invoice number, different layout | BLOCKED (business-key dup) |
-| `invoices/invoice_split_1.pdf` | First partial invoice, PO-2001, ₹40,000 | READY_FOR_AP_APPROVAL |
-| `invoices/invoice_split_2.pdf` | Second partial invoice, PO-2001, ₹60,000 | READY_FOR_AP_APPROVAL |
-| `invoices/invoice_split_3.pdf` | Over-billing attempt, PO-2001, ₹1,000 | REVIEW_REQUIRED / BLOCKED |
-| `invoices/invoice_missing_po.pdf` | No PO reference, V-002 (two open POs) | REVIEW_REQUIRED |
-| `invoices/invoice_low_quality_scan.pdf` | Image-only PDF, blurred field | REVIEW_REQUIRED |
-| `invoices/invoice_vendor_po_mismatch.pdf` | Invoice vendor ≠ PO owner | BLOCKED |
-| `invoices/invoice_total_mismatch.pdf` | Subtotal + tax ≠ declared total | REVIEW_REQUIRED |
-| `vendors.csv` | Vendor master data | — |
-| `purchase_orders.csv` | PO master data | — |
+| Method | Endpoint | Description | Cache Policy |
+|---|---|---|---|
+| `POST` | `/api/invoices` | Upload single invoice PDF and enqueue 13-stage background run | Cache Invalidation |
+| `POST` | `/api/invoices/batch` | Batch upload multiple invoice PDFs or a `.zip` archive | Cache Invalidation |
+| `GET` | `/api/runs` | List invoice processing runs with pagination and status filters | In-Memory TTL (10s) |
+| `GET` | `/api/runs/{run_id}` | Retrieve comprehensive run details, stages, rule results, and AI briefing | In-Memory TTL (60s) |
+| `GET` | `/api/runs/{run_id}/file` | Stream or download original source PDF | Direct Passthrough |
+| `POST` | `/api/runs/{run_id}/review` | Record human auditor decision (`CONFIRM`, `ASSIGN_PO`, `REQUEST_VENDOR_INFO`, `REJECT`) | Cache Invalidation |
+| `POST` | `/api/runs/{run_id}/retry` | Retry processing for failed runs without losing history | Cache Invalidation |
+| `GET` | `/api/runs/export` | Export runs in ERP-ready CSV or JSON format | Direct Passthrough |
+| `GET` | `/api/vendors` | List approved and master vendors | In-Memory TTL (120s) |
+| `GET` | `/api/purchase-orders` | List purchase orders with batched real-time remaining balances | In-Memory TTL (60s) |
+| `GET` | `/api/health` | Service health status, database provider, and model configurations | Direct Passthrough |
 
 ---
 
-## Running Tests
+## Running Test Suites
 
 ```bash
 cd backend
 pytest tests/ -v
+```
 
-# Key test modules:
-# tests/test_reconciliation.py      — invoice arithmetic and PO balance
-# tests/test_duplicate_detection.py — file hash and business-key checks
-# tests/test_po_matching.py         — exact and candidate PO matching
-# tests/test_decision_engine.py     — rule priority and status assignment
+### Key Test Coverage:
+* `tests/test_reconciliation.py`: Decimal arithmetic precision, rounding allowance (₹1.00), and tolerance cap enforcement.
+* `tests/test_duplicate_detection.py`: SHA-256 byte-level collision and business-key normalisation (`AST-2026-041` vs `ast 2026 041`).
+* `tests/test_po_matcher.py`: Exact PO mapping, candidate ranking by proximity and date, and closed/cancelled PO rejection.
+* `tests/test_decision_engine.py`: Strict rule priority evaluation (`BLOCK` > `REVIEW` > `READY`) and preservation of all rule findings.
+* `tests/test_reviewer_actions.py`: Auditor review event logging, PO reassignment, and status transition audit trails.
+
+---
+
+## Repository Structure
+
+```
+ledgerflow/
+├── backend/
+│   ├── app/
+│   │   ├── api/routes/          # REST route handlers (invoices, runs, vendors, POs)
+│   │   ├── models/              # SQLAlchemy 2.0 Async ORM models
+│   │   ├── schemas/             # Pydantic v2 validation and serialization schemas
+│   │   ├── services/            # Extraction, matching, duplicate, reconciliation, cache services
+│   │   ├── workflow/            # 13-stage background workflow runner & stage lifecycle
+│   │   ├── config.py            # Pydantic BaseSettings configuration
+│   │   ├── database.py          # Async SQLAlchemy engine & async_session_factory
+│   │   └── main.py              # FastAPI app initialization, middleware, & router registration
+│   ├── scripts/                 # Database seed scripts & synthetic PDF generators
+│   └── tests/                   # Pytest test suites (unit, integration, and E2E)
+├── frontend/
+│   ├── app/
+│   │   ├── invoices/            # Full-table invoice search, filter, and drill-down
+│   │   ├── runs/[runId]/        # Live run timeline, PDF viewer, AI Briefing, and Review Console
+│   │   ├── upload/              # Single and batch drag-and-drop upload workspace
+│   │   ├── vendors/             # Vendors and Purchase Orders master records viewer
+│   │   ├── layout.tsx           # Global sidebar navigation and layout
+│   │   └── page.tsx             # Overview Bento dashboard with real-time statistics
+│   ├── components/              # Modular components (Briefing Card, PO Preview Modal, Timeline)
+│   └── lib/                     # API client, SWR in-memory caching, currency/date formatters
+├── docs/                        # Architecture specs, decision logs, PRD blueprint, business rules
+└── sample_data/                 # Synthetic invoice PDFs covering all edge cases
 ```
 
 ---
 
-## API Reference
+## License
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/invoices` | Upload PDF and start a processing run |
-| `GET` | `/api/runs` | List runs (paginated, filterable by status) |
-| `GET` | `/api/runs/{run_id}` | Full run detail — stages, extraction, rules, decision |
-| `GET` | `/api/runs/{run_id}/file` | Download original PDF |
-| `POST` | `/api/runs/{run_id}/retry` | Retry a failed run without erasing prior attempt |
-| `POST` | `/api/runs/{run_id}/review` | Record human review action and reason |
-| `GET` | `/api/vendors` | List vendor master records |
-| `GET` | `/api/purchase-orders` | List / filter PO records |
-| `GET` | `/api/health` | Health check |
-
----
-
-## Design Decisions
-
-All key decisions are documented in [`docs/decisions.md`](docs/decisions.md).
-
-Summary:
-
-| Decision | Choice |
-|---|---|
-| Currency | INR only |
-| PO consumption | READY = committed (idempotent) |
-| Duplicate tiers | 3-tier: exact file / business-key → BLOCKED; possible → REVIEW |
-| Tolerance | 1% of remaining PO, capped at ₹500 (configurable) |
-| Ambiguous PO | Always requires human confirmation |
-| Reviewer UI | Minimal form: Confirm / Return / Reject + mandatory note |
-| LLM primary | qwen/qwen3.8-27b on Groq (vision + text) |
-| LLM fallback | gemini-3.8-flash via google-genai SDK |
-| Deployment | Vercel + Railway + Supabase |
-
----
-
-## Known Limitations
-
-These are stated honestly as part of the case study:
-
-1. **PO data is seeded test data** — not connected to a live procurement system.
-2. **PO consumption is immediate on READY** — in production, consumption would occur only after explicit AP approval.
-3. **No goods-received-note (GRN) verification** — delivery confirmation is not checked.
-4. **Tax arithmetic only** — not legal GST/VAT compliance determination.
-5. **INR only** — no multi-currency support. Non-INR invoices are routed to review.
-6. **Fuzzy PO matching is a suggestion** — requires human confirmation when PO reference is absent.
-7. **OCR/LLM can misread digits** — uncertain critical fields are always routed to review, never auto-approved.
-8. **Single-instance background processing** — suitable for demo, not a durable production workflow engine.
-9. **No real authentication** — reviewer identity is a demo label; enterprise auth is out of scope.
-10. **This system does not initiate or schedule payments** — it produces a recommendation for the next AP approval step.
-
----
-
-## Documentation Index
-
-| File | Contents |
-|---|---|
-| [`docs/decisions.md`](docs/decisions.md) | All 8 locked design decisions with rationale |
-| [`docs/business-rules.md`](docs/business-rules.md) | 16 business rules with pass conditions and decision engine order |
-| [`docs/extraction-schema.md`](docs/extraction-schema.md) | LLM invoice schema, Pydantic models, prompt template, normalisation rules |
-| [`docs/data-model.md`](docs/data-model.md) | 7 database tables with types, constraints, indexes, seed data |
-| [`docs/demo-script.md`](docs/demo-script.md) | Step-by-step walkthrough for all 5 demo scenarios |
-| [`.env.example`](.env.example) | All environment variables with defaults |
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

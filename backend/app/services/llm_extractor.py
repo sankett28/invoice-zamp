@@ -328,6 +328,46 @@ Rules:
             }
         )
 
+    def _humanize_rule(self, rule_text: str) -> str:
+        # Arithmetic discrepancy with numbers
+        m_arith = re.search(r'Declared\s+([A-Z]+\s+[\d\.,]+)\s*!=\s*Calculated\s+([A-Z]+\s+[\d\.,]+).*?Variance of\s+([A-Z]+\s+[\d\.,]+)', rule_text)
+        if m_arith:
+            dec, calc, var = m_arith.groups()
+            return f"**Arithmetic Discrepancy**: Billed total ({dec}) does not match the sum of line items and tax ({calc}) — unexplained difference of {var}."
+        if 'Arithmetic discrepancy' in rule_text or 'Arithmetic Reconciliation' in rule_text:
+            return "**Arithmetic Discrepancy**: Billed grand total does not equal the calculated sum of subtotal, taxes, and discounts."
+
+        # Line item multiplication
+        if 'Line Item' in rule_text:
+            return "**Line Item Calculation**: Quantity multiplied by unit price does not equal the stated line total on one or more items."
+
+        # PO Balance & Tolerance
+        if 'exceeds' in rule_text.lower() and 'po' in rule_text.lower():
+            return "**PO Budget Exceeded**: Billed amount exceeds the remaining available budget on the referenced purchase order."
+        if 'tolerance' in rule_text.lower():
+            return "**Tolerance Warning**: Billed amount slightly exceeds PO remaining balance but is within the allowable tolerance margin."
+
+        # Vendor status
+        if 'Vendor' in rule_text and ('status' in rule_text.lower() or 'approved' in rule_text.lower()):
+            return "**Vendor Status Blocked**: Vendor is listed as inactive or unapproved in the vendor master."
+        if 'Vendor Identity' in rule_text or 'could not be identified' in rule_text.lower():
+            return "**Unmatched Vendor**: Vendor legal name or tax ID could not be matched against any approved vendor record."
+
+        # PO References
+        if 'Purchase Order Reference' in rule_text or 'No valid purchase order' in rule_text:
+            return "**Missing PO Reference**: Invoice does not quote a valid, confirmed purchase order number."
+        if 'PO Vendor' in rule_text:
+            return "**PO Ownership Conflict**: Referenced purchase order belongs to a different vendor than the billing vendor."
+        if 'PO Lifecycle' in rule_text or 'CLOSED' in rule_text or 'CANCELLED' in rule_text:
+            return "**PO Inactive**: Referenced purchase order is closed or cancelled and cannot accept new billings."
+
+        # Duplicate detection
+        if 'Duplicate' in rule_text:
+            return "**Duplicate Risk**: An invoice with this invoice number or identical file content already exists."
+
+        clean = re.sub(r'^[A-Za-z0-9\s\-]+:\s*', '', rule_text)
+        return f"**Audit Discrepancy**: {clean}"
+
     def _build_deterministic_summary(
         self,
         vendor_name: str | None,
@@ -346,39 +386,32 @@ Rules:
         v_name = vendor_name or "Vendor"
         inv_num = invoice_number or "unspecified invoice"
         amt_str = f"{curr} {grand_total}" if grand_total else "the stated amount"
+        po_str = f", linked to Purchase Order {po_number}" if po_number else ""
 
+        overview = f"{v_name} submitted invoice {inv_num} for {amt_str}{po_str}."
+
+        bullets = []
         if decision_status == "READY_FOR_AP_APPROVAL":
             if po_number:
-                rem_txt = f", leaving {curr} {po_remaining_after} available in remaining funds" if po_remaining_after else ""
-                budget_txt = f" of the {curr} {po_total} allocated budget" if po_total else ""
-                return (
-                    f"{v_name} submitted invoice {inv_num} for {amt_str}, matching purchase order {po_number}. "
-                    f"This invoice consumes budget as expected{budget_txt}{rem_txt}. "
-                    f"All {passed_rules_count} automated audit checks passed cleanly: GST and line calculations are mathematically exact, "
-                    f"the document fingerprint is unique with zero duplicate risk, and no suspicious anomalies were detected. "
-                    f"This invoice is verified and clear for immediate Accounts Payable approval."
-                )
-            else:
-                return (
-                    f"{v_name} submitted invoice {inv_num} for {amt_str}. "
-                    f"All {passed_rules_count} automated audit checks passed cleanly: arithmetic, tax compliance, and duplicate checks are fully reconciled. "
-                    f"This invoice is clear for Accounts Payable approval."
-                )
+                rem_txt = f"; {curr} {po_remaining_after} remains available in budget" if po_remaining_after else ""
+                bullets.append(f"• **PO Budget**: Consumes {amt_str} against {po_number}{rem_txt}.")
+            bullets.append(f"• **Clean Audit**: All {passed_rules_count} automated audit checks passed cleanly — arithmetic, GST rates, and duplicate checks are fully reconciled.")
+            action = "**Action**: Verified clean. Ready for Accounts Payable approval."
         elif decision_status == "REVIEW_REQUIRED":
-            discrepancy = attention_rules[0] if attention_rules else "A review discrepancy was detected during audit"
-            po_txt = f"Linked against PO {po_number}. " if po_number else "No exact PO was quoted on the document. "
-            return (
-                f"Invoice {inv_num} from {v_name} for {amt_str} requires human auditor attention. "
-                f"{po_txt}{discrepancy}. "
-                f"Core tax and duplicate integrity checks succeeded, but auditor verification and sign-off are required prior to releasing payment."
-            )
-        else:
-            blocker = attention_rules[0] if attention_rules else "policy violations or duplicate detection"
-            return (
-                f"Invoice {inv_num} for {amt_str} was BLOCKED by the automated audit engine. "
-                f"Blocker reason: {blocker}. "
-                f"Do not process or schedule payment for this document until the blocker is resolved."
-            )
+            for r in attention_rules[:3]:
+                bullets.append(f"• {self._humanize_rule(r)}")
+            if po_number and po_remaining_after:
+                bullets.append(f"• **PO Budget**: Available remaining budget on PO {po_number} is {curr} {po_remaining_after}.")
+            bullets.append(f"• **Integrity Checks**: {passed_rules_count} automated rules (tax ID, vendor identity, duplicate checks) verified cleanly.")
+            action = "**Action**: Requires human auditor review and resolution before payment release."
+        else: # BLOCKED
+            for r in attention_rules[:3]:
+                bullets.append(f"• {self._humanize_rule(r)}")
+            bullets.append(f"• **Integrity Failure**: Critical policy failure flagged by automated audit engine.")
+            action = "**Action**: Immediate investigation required. Do not process or schedule payment for this invoice."
+
+        bullet_text = "\n".join(bullets)
+        return f"{overview}\n\n{bullet_text}\n\n{action}"
 
     async def generate_run_summary(
         self,
@@ -394,25 +427,33 @@ Rules:
         attention_rules: list[str],
         passed_rules_count: int,
     ) -> str:
-        prompt = f"""You are the senior AI accounts payable auditor for LedgerFlow.
-Write a clear, concise, highly informative 2-3 sentence executive briefing about this invoice processing run for a human finance manager.
-Keep it strictly under 85 words. No markdown bullet points or headers; write as a single cohesive, elegant paragraph.
+        curr = currency or "INR"
+        cleaned_flags = [self._humanize_rule(r) for r in attention_rules]
+        flags_text = "\n".join([f"  - {f}" for f in cleaned_flags]) if cleaned_flags else "  - None (0 flags, clean run)"
 
-Context:
+        prompt = f"""You are the Senior Accounts Payable Controller and Forensic Auditor for LedgerFlow.
+Your task is to write a concise, professional executive verification summary for a finance manager.
+
+Invoice Context:
 - Vendor Name: {vendor_name or 'Unmatched Vendor'}
 - Invoice Number: {invoice_number or 'Unknown'}
-- Invoice Amount: {currency or 'INR'} {grand_total or '0.00'}
-- Purchase Order Reference: {po_number or 'None quoted on invoice'}
-- PO Budget: {currency or 'INR'} {po_total or 'N/A'} (Remaining before: {currency or 'INR'} {po_remaining_before or 'N/A'}, Remaining after: {currency or 'INR'} {po_remaining_after or 'N/A'})
-- Flagged Issues / Warnings: {'; '.join(attention_rules) if attention_rules else 'None (0 flags)'}
-- Passing Checks Count: {passed_rules_count} checks passed cleanly
+- Billed Amount: {curr} {grand_total or '0.00'}
+- Purchase Order Reference: {po_number or 'None linked'}
+- PO Budget Info: Allocated {curr} {po_total or 'N/A'}, Remaining before: {curr} {po_remaining_before or 'N/A'}, Remaining after: {curr} {po_remaining_after or 'N/A'}
+- Audit Findings / Flags:
+{flags_text}
+- Clean Passed Checks: {passed_rules_count} automated rules satisfied
 - System Audit Decision: {decision_status}
 
 Instructions:
-1. Explain who the invoice is from, the amount, and PO linkage.
-2. Mention the spend vs budget impact (how much is consumed or remaining).
-3. Confirm if math, taxes, and duplicate checks are clean or explain what was flagged.
-4. Conclude with whether it is ready for approval or needs human auditor review.
+1. Provide a 1-sentence opening stating the vendor name, invoice number, billed amount, and matched PO.
+2. Present key findings using clean bullet points (•):
+   - Focus on the actual ROOT CAUSE of any flagged issue in plain business language. Never dump raw formulas or equations like 'Declared != Calculated (Subtotal + Tax...)'.
+   - If there is an arithmetic error, state clearly that the billed total differs from the sum of line items and tax by the discrepancy amount.
+   - Summarize the PO budget impact (how much is consumed or remaining).
+   - If clean, state that math, taxes, and duplicate checks are fully reconciled.
+3. Conclude with a clear 'Action:' line specifying the recommended next step for the AP auditor.
+4. Keep the total summary under 120 words. Clean, well-structured, and easy for an executive to read in seconds.
 """
         if settings.gemini_api_key:
             try:
@@ -420,7 +461,7 @@ Instructions:
                 from google.genai import types
 
                 client = genai.Client(api_key=settings.gemini_api_key)
-                for m in ["gemini-3.5-flash-lite", "gemini-3.5-flash"]:
+                for m in [settings.llm_primary_model, "gemini-3.5-flash-lite", "gemini-2.5-flash"]:
                     try:
                         resp = await asyncio.to_thread(
                             client.models.generate_content,
@@ -428,7 +469,7 @@ Instructions:
                             contents=prompt,
                             config=types.GenerateContentConfig(
                                 temperature=0.2,
-                                max_output_tokens=150,
+                                max_output_tokens=300,
                             ),
                         )
                         if resp.text and len(resp.text.strip()) > 30:

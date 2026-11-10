@@ -181,9 +181,15 @@ async def get_run_detail(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     if po_resp:
         resp_dict["purchase_order"] = po_resp
 
+    # Guard: Do not synthesize or return an AI summary while the run is still processing
+    if run.processing_state in ("QUEUED", "PROCESSING"):
+        resp_dict["ai_summary"] = None
+        resp_dict["decision_summary"] = None
+        return resp_dict
+
     # Ensure rich AI summary is always returned
     ai_sum = run.decision.summary if (run.decision and run.decision.summary and len(run.decision.summary) > 70) else run.decision_summary
-    if not ai_sum or len(ai_sum) < 65 or ai_sum.startswith("All required checks") or ai_sum.startswith("Reviewer resolved invoice"):
+    if not ai_sum or len(ai_sum) < 65 or ai_sum.startswith("All required checks") or ai_sum.startswith("Reviewer resolved invoice") or "Arithmetic discrepancy: Declared" in ai_sum or "Subtotal: INR" in ai_sum:
         v_name = run.vendor.legal_name if run.vendor else ((run.extracted_data or {}).get("vendor", {}).get("name") if isinstance(run.extracted_data, dict) else None)
         po_obj = run.purchase_order
         po_num = po_obj.po_number if po_obj else None
@@ -201,7 +207,7 @@ async def get_run_detail(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 
         from app.services.llm_extractor import LLMExtractor
         extractor = LLMExtractor()
-        ai_sum = extractor._build_deterministic_summary(
+        ai_sum = await extractor.generate_run_summary(
             vendor_name=v_name,
             invoice_number=run.invoice_number,
             grand_total=str(run.grand_total) if run.grand_total else None,

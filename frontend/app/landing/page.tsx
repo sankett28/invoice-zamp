@@ -547,7 +547,7 @@ export default function LandingPage() {
               <div className="absolute top-0 left-0 right-0 h-1.5 bg-primary" />
               <div className="space-y-3 pt-1">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-bold bg-primary/10 text-primary border border-primary/20">
-                  READY_FOR_AP_APPROVAL
+                  READY FOR AP APPROVAL
                 </span>
                 <div className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
                   Pay it.
@@ -567,7 +567,7 @@ export default function LandingPage() {
               <div className="absolute top-0 left-0 right-0 h-1.5 bg-secondary" />
               <div className="space-y-3 pt-1">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-bold bg-secondary/30 text-secondary-foreground border border-secondary/40">
-                  REVIEW_REQUIRED
+                  REVIEW REQUIRED
                 </span>
                 <div className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
                   Ask a human.
