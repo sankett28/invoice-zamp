@@ -1,3 +1,4 @@
+from app.services.cache_service import cache
 import csv
 import io
 import json
@@ -50,8 +51,14 @@ async def list_runs(
         else:
             stmt = stmt.where(InvoiceRun.decision_status == status)
 
+    cache_key = f"runs:list:{status}:{limit}:{offset}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     result = await db.execute(stmt)
     runs = result.scalars().all()
+    cache.set(cache_key, runs, ttl_seconds=10)
     return runs
 
 
@@ -131,6 +138,10 @@ async def export_runs(
 
 @router.get("/{run_id}", response_model=RunDetailResponse)
 async def get_run_detail(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    cache_key = f"runs:detail:{run_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
     stmt = (
         select(InvoiceRun)
         .options(
@@ -208,6 +219,9 @@ async def get_run_detail(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     if not resp_dict.get("decision_summary") or len(resp_dict["decision_summary"]) < 60:
         resp_dict["decision_summary"] = ai_sum
 
+    if resp_dict.get("processing_state") in ("COMPLETED", "FAILED"):
+        cache.set(cache_key, resp_dict, ttl_seconds=60)
+
     return resp_dict
 
 
@@ -279,6 +293,9 @@ async def submit_review(
 
     await db.commit()
     await db.refresh(event)
+
+    cache.invalidate("runs:")
+    cache.invalidate("pos:")
 
     return ReviewEventResponse.model_validate(event)
 
