@@ -60,6 +60,10 @@ class Settings(BaseSettings):
         if self.database_url.startswith("sqlite+aiosqlite:///.") or self.database_url == "sqlite+aiosqlite:///ledgerflow.db":
             db_file = (BACKEND_DIR / "ledgerflow.db").as_posix()
             self.database_url = f"sqlite+aiosqlite:///{db_file}"
+        elif self.database_url.startswith("postgres://"):
+            self.database_url = self.database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif self.database_url.startswith("postgresql://") and not self.database_url.startswith("postgresql+asyncpg://"):
+            self.database_url = self.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
     model_config = SettingsConfigDict(
         env_file=("../.env", ".env"),

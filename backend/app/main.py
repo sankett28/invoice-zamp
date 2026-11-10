@@ -38,16 +38,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS setup
-origins = [
-    settings.frontend_url,
+# CORS setup: support comma-separated origins, localhost, and Vercel domains
+configured_origins = [
+    origin.strip()
+    for origin in settings.frontend_url.split(",")
+    if origin.strip()
+]
+origins = list(dict.fromkeys(configured_origins + [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-]
+]))
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,6 +63,16 @@ app.include_router(invoices_router)
 app.include_router(runs_router)
 app.include_router(vendors_router)
 app.include_router(purchase_orders_router)
+
+
+@app.get("/")
+async def root():
+    return {
+        "status": "healthy",
+        "service": "LedgerFlow API",
+        "version": "1.0.0",
+        "docs_url": "/docs",
+    }
 
 
 @app.get("/api/health")
