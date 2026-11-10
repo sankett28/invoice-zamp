@@ -98,8 +98,45 @@ export interface UploadResponse {
   message: string;
 }
 
+// ---------------------------------------------------------------------------
+// Client-side Memory Cache with TTL
+// ---------------------------------------------------------------------------
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const clientCache = new Map<string, CacheEntry<any>>();
+
+function getCached<T>(key: string, ttlMs: number = 30000): T | null {
+  const entry = clientCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > ttlMs) {
+    clientCache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+function setCached<T>(key: string, data: T): void {
+  clientCache.set(key, { data, timestamp: Date.now() });
+}
+
+export function clearClientCache(prefix?: string): void {
+  if (!prefix) {
+    clientCache.clear();
+  } else {
+    for (const k of clientCache.keys()) {
+      if (k.startsWith(prefix)) clientCache.delete(k);
+    }
+  }
+}
+
 export const api = {
+  clearCache: clearClientCache,
+
   async uploadInvoice(file: File): Promise<UploadResponse> {
+    clearClientCache();
     const form = new FormData();
     form.append("file", file);
     const res = await fetch(`${API_BASE}/api/invoices`, {
@@ -114,6 +151,7 @@ export const api = {
   },
 
   async uploadBatch(files: File[]): Promise<{ total_files: number; successful_queued: number; runs: UploadResponse[]; errors: { filename: string; error: string }[] }> {
+    clearClientCache();
     const form = new FormData();
     for (const file of files) {
       form.append("files", file);
@@ -135,24 +173,45 @@ export const api = {
     return `${API_BASE}/api/runs/export?${params.toString()}`;
   },
 
-  async listRuns(status?: string, limit = 50, offset = 0): Promise<RunSummary[]> {
+  async listRuns(status?: string, limit = 50, offset = 0, forceRefresh = false): Promise<RunSummary[]> {
+    const cacheKey = `runs:${status || "ALL"}:${limit}:${offset}`;
+    if (!forceRefresh) {
+      const cached = getCached<RunSummary[]>(cacheKey, 8000);
+      if (cached) return cached;
+    }
+
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (status && status !== "ALL") params.set("status", status);
-    const res = await fetch(`${API_BASE}/api/runs?${params}`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}/api/runs?${params}`);
     if (!res.ok) throw new Error("Failed to fetch runs.");
-    return res.json();
+    const data = await res.json();
+    setCached(cacheKey, data);
+    return data;
   },
 
-  async getRun(runId: string): Promise<RunDetail> {
-    const res = await fetch(`${API_BASE}/api/runs/${runId}`, { cache: "no-store" });
+  async getRun(runId: string, forceRefresh = false): Promise<RunDetail> {
+    const cacheKey = `run:${runId}`;
+    if (!forceRefresh) {
+      const cached = getCached<RunDetail>(cacheKey, 15000);
+      if (cached && cached.processing_state !== "QUEUED" && cached.processing_state !== "PROCESSING") {
+        return cached;
+      }
+    }
+
+    const res = await fetch(`${API_BASE}/api/runs/${runId}`);
     if (!res.ok) throw new Error("Failed to fetch run details.");
-    return res.json();
+    const data = await res.json();
+    if (data.processing_state === "COMPLETED" || data.processing_state === "FAILED") {
+      setCached(cacheKey, data);
+    }
+    return data;
   },
 
   async submitReview(
     runId: string,
     data: { action: string; reviewer_label: string; reason: string; assigned_po_id?: string }
   ): Promise<ReviewEvent> {
+    clearClientCache();
     const res = await fetch(`${API_BASE}/api/runs/${runId}/review`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -165,19 +224,35 @@ export const api = {
     return res.json();
   },
 
-  async listVendors(): Promise<Vendor[]> {
-    const res = await fetch(`${API_BASE}/api/vendors`, { cache: "no-store" });
+  async listVendors(forceRefresh = false): Promise<Vendor[]> {
+    const cacheKey = "vendors:all";
+    if (!forceRefresh) {
+      const cached = getCached<Vendor[]>(cacheKey, 60000);
+      if (cached) return cached;
+    }
+
+    const res = await fetch(`${API_BASE}/api/vendors`);
     if (!res.ok) throw new Error("Failed to fetch vendors.");
-    return res.json();
+    const data = await res.json();
+    setCached(cacheKey, data);
+    return data;
   },
 
-  async listPurchaseOrders(vendorId?: string, status?: string): Promise<PurchaseOrder[]> {
+  async listPurchaseOrders(vendorId?: string, status?: string, forceRefresh = false): Promise<PurchaseOrder[]> {
+    const cacheKey = `pos:${vendorId || "all"}:${status || "all"}`;
+    if (!forceRefresh) {
+      const cached = getCached<PurchaseOrder[]>(cacheKey, 45000);
+      if (cached) return cached;
+    }
+
     const params = new URLSearchParams();
     if (vendorId) params.set("vendor_id", vendorId);
     if (status) params.set("status", status);
-    const res = await fetch(`${API_BASE}/api/purchase-orders?${params}`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}/api/purchase-orders?${params}`);
     if (!res.ok) throw new Error("Failed to fetch purchase orders.");
-    return res.json();
+    const data = await res.json();
+    setCached(cacheKey, data);
+    return data;
   },
 
   getFileUrl(runId: string): string {

@@ -219,3 +219,27 @@
   ::-webkit-scrollbar-thumb:hover { background: var(--chart-4); }
   * { scrollbar-width: thin; scrollbar-color: var(--primary) transparent; }
 }
+
+
+/* Smooth scrolling and landing page micro-animations */
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.02); }
+}
+
+.animate-float {
+  animation: floatGentle 5s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}

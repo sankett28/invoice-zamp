@@ -5,7 +5,7 @@ import { Sun, Moon, Desktop } from "@phosphor-icons/react";
 
 type ThemeMode = "light" | "dark" | "system";
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string } = {}) {
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [mounted, setMounted] = useState(false);
 
@@ -43,21 +43,24 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="w-8 h-8 rounded-xl border border-border bg-card animate-pulse" />
+      <div className="w-8 h-8 rounded-full border border-white/20 bg-white/10 animate-pulse" />
     );
   }
 
   return (
     <button
       onClick={cycleTheme}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-medium transition shadow-xs cursor-pointer"
+      className={
+        className ||
+        "flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/35 bg-black/30 hover:bg-black/45 text-white text-xs font-semibold transition cursor-pointer shadow-xs"
+      }
       title={`Theme: ${theme}. Click to switch.`}
       type="button"
     >
-      {theme === "light" && <Sun size={15} weight="regular" className="text-secondary-foreground" />}
-      {theme === "dark" && <Moon size={15} weight="regular" className="text-primary" />}
-      {theme === "system" && <Desktop size={15} weight="regular" className="text-muted-foreground" />}
-      <span className="capitalize text-xs font-medium hidden sm:inline text-muted-foreground">{theme}</span>
+      {theme === "light" && <Sun size={15} weight="bold" className="text-amber-400 shrink-0" />}
+      {theme === "dark" && <Moon size={15} weight="bold" className="text-emerald-300 shrink-0" />}
+      {theme === "system" && <Desktop size={15} weight="bold" className="text-white/80 shrink-0" />}
+      <span className="capitalize text-xs font-semibold text-white drop-shadow-2xs hidden sm:inline">{theme}</span>
     </button>
   );
 }

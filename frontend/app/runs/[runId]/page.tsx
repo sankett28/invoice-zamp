@@ -28,6 +28,50 @@ import { api, RunDetail } from "@/lib/api";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
+const HUMAN_RULE_NAMES: Record<string, string> = {
+  "R-001": "Document File Integrity",
+  "R-002": "Identical File Duplicate Check",
+  "R-003": "Invoice Document Classification",
+  "R-004": "Required Fields Extraction",
+  "R-005": "Data Evidence & Quality",
+  "R-006": "Vendor Verification",
+  "R-007": "Vendor Approval Status",
+  "R-008": "Vendor Tax ID / GSTIN Check",
+  "R-009": "Vendor Bank Details Match",
+  "R-010": "Purchase Order Match",
+  "R-011": "Vendor PO Assignment",
+  "R-012": "Duplicate Invoice Check",
+  "R-013": "Invoice Total Arithmetic",
+  "R-014": "Line Item Calculation Check",
+  "R-015": "PO Budget & Tolerance Check",
+  "R-016": "Three-Way Line Matching",
+};
+
+function cleanRuleMessage(msg?: string): string {
+  if (!msg) return "Flagged for reviewer attention.";
+  let clean = msg;
+
+  // Replace run UUIDs with human-friendly descriptions
+  clean = clean.replace(
+    /in Run [0-9a-f-]{36} \(Status:\s*([A-Za-z_]+)\)/gi,
+    (_m, status) => {
+      const s = status.toUpperCase();
+      const label = s.includes("READY") ? "Approved" : s.includes("BLOCKED") ? "Blocked" : "Under Review";
+      return `in an earlier submission (Status: ${label})`;
+    }
+  );
+  clean = clean.replace(/in Run [0-9a-f-]{36}/gi, "in an earlier submission");
+  clean = clean.replace(/Run [0-9a-f-]{36}/gi, "earlier submission");
+
+  // Format currency amounts like INR 94400.00 -> ₹94,400.00
+  clean = clean.replace(/INR\s+([\d,]+(?:\.\d+)?)/g, (_m, numStr) => {
+    const val = parseFloat(numStr.replace(/,/g, ""));
+    return isNaN(val) ? numStr : formatCurrency(val);
+  });
+
+  return clean;
+}
+
 export default function RunDetailPage({ params }: { params: Promise<{ runId: string }> }) {
   const resolvedParams = use(params);
   const runId = resolvedParams.runId;
@@ -126,7 +170,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
       <div className="p-16 flex flex-col items-center justify-center space-y-3 min-h-[50vh]">
         <ArrowsClockwise size={28} weight="bold" className="text-primary animate-spin" />
         <span className="text-sm font-medium text-muted-foreground">
-          Retrieving processing run inspection...
+          Loading invoice details...
         </span>
       </div>
     );
@@ -332,17 +376,17 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
           <div className="flex items-center gap-2">
             <Sparkle size={15} weight="fill" className="text-primary shrink-0" />
             <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-              AI Executive Run Summary
+              Verification Summary
             </span>
           </div>
           <p className="text-xs sm:text-[13px] leading-relaxed text-foreground font-medium">
             {run?.ai_summary ||
               run?.decision_summary ||
               (status === "READY_FOR_AP_APPROVAL"
-                ? `${run?.vendor?.legal_name || "Vendor"} submitted invoice ${run?.invoice_number || run?.original_filename} for ${grandTotal ? formatCurrency(grandTotal) : "the invoice amount"}${po ? `, matching purchase order ${po.po_number} with ${formatCurrency(effectiveRemaining)} in remaining budget` : ""}. All ${passedRules.length || 16} automated audit checks passed cleanly: GST calculations and line totals are exact, SHA-256 fingerprint is unique with zero duplicate risk, and no suspicious anomalies were detected. This invoice is verified and clear for immediate Accounts Payable approval.`
+                ? `${run?.vendor?.legal_name || "Vendor"} submitted invoice ${run?.invoice_number || run?.original_filename} for ${grandTotal ? formatCurrency(grandTotal) : "the invoice amount"}${po ? `, matching purchase order ${po.po_number} with ${formatCurrency(effectiveRemaining)} in remaining budget` : ""}. All ${passedRules.length || 16} automated audit checks passed cleanly: GST calculations and line totals are exact, document and invoice number are unique with zero duplicate risk, and no suspicious anomalies were detected. This invoice is verified and clear for immediate Accounts Payable approval.`
                 : status === "BLOCKED"
-                ? `This invoice was BLOCKED by the automated audit engine due to policy violations. Immediate investigation is required; do not schedule or release payment.`
-                : `Invoice requires human auditor review. Core integrity checks completed, but manual sign-off is required prior to releasing payment.`)}
+                ? `This invoice was blocked by the automated audit engine due to policy violations. Immediate investigation is required; do not schedule or release payment.`
+                : `Invoice requires human reviewer review. Core integrity checks completed, but manual sign-off is required prior to releasing payment.`)}
           </p>
         </div>
       </div>
@@ -397,11 +441,11 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Engine Status</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Processing Status</span>
               <span className="font-semibold text-primary">{run?.processing_state || "COMPLETED"}</span>
             </div>
             <div>
-              <span className="text-[10px] text-muted-foreground uppercase font-semibold block">SHA-256</span>
+              <span className="text-[10px] text-muted-foreground uppercase font-semibold block">Document Hash</span>
               <span className="font-mono text-muted-foreground text-[10px] truncate block" title={run?.file_sha256}>
                 {run?.file_sha256 ? `${run.file_sha256.slice(0, 10)}…` : "—"}
               </span>
@@ -416,7 +460,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
             <div className="flex items-center justify-between pb-2 border-b border-border">
               <h3 className="text-sm font-semibold text-foreground">Extracted invoice fields</h3>
               <span className="text-xs text-muted-foreground font-mono">
-                {run?.extracted_data ? "Structured OCR Extracted" : "Pending Extraction"}
+                {run?.extracted_data ? "Fields Extracted" : "Pending Extraction"}
               </span>
             </div>
 
@@ -579,12 +623,12 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
             )}
           </div>
 
-          {/* Card 3: Deterministic Rule Audit Log */}
+          {/* Card 3: Rule Audit Log */}
           <div className="rounded-2xl border border-border bg-card p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-border">
-              <h3 className="text-sm font-semibold text-foreground">Rule audit</h3>
+              <h3 className="text-sm font-semibold text-foreground">Verification checks</h3>
               <span className="text-xs text-muted-foreground">
-                {attentionRules.length} attention · {passedRules.length} passed
+                {attentionRules.length} {attentionRules.length === 1 ? "issue found" : "issues found"} · {passedRules.length} passed
               </span>
             </div>
 
@@ -601,13 +645,13 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold text-foreground flex items-center gap-2">
-                        <span>{r.rule_name}</span>
-                        <span className="font-mono text-[10px] text-secondary-foreground">
-                          {r.rule_id}
+                        <span>{HUMAN_RULE_NAMES[r.rule_id] || r.rule_name}</span>
+                        <span className="font-mono text-[10px] text-muted-foreground bg-muted px-1.5 py-0.2 rounded">
+                          Rule #{r.rule_id.replace("R-0", "").replace("R-", "")}
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                        {r.message || "Rule flagged for reviewer attention."}
+                        {cleanRuleMessage(r.message)}
                       </p>
                     </div>
                   </div>
@@ -615,7 +659,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
               ) : (
                 <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary flex items-center gap-2">
                   <CheckCircle size={16} weight="fill" />
-                  <span>No blocking violations or tolerance warnings flagged.</span>
+                  <span>All verification checks passed with zero issues or tolerance warnings.</span>
                 </div>
               )}
 
@@ -626,7 +670,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
                     onClick={() => setShowAllRules(!showAllRules)}
                     className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer"
                   >
-                    <span>{passedRules.length} passing rules satisfied</span>
+                    <span>{passedRules.length} checks passed successfully</span>
                     {showAllRules ? <CaretUp size={12} weight="bold" /> : <CaretDown size={12} weight="bold" />}
                   </button>
 
@@ -637,7 +681,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
                           key={r.rule_id}
                           className="p-2 rounded-lg bg-background border border-border flex items-center justify-between text-[11px]"
                         >
-                          <span className="text-foreground">{r.rule_name}</span>
+                          <span className="text-foreground">{HUMAN_RULE_NAMES[r.rule_id] || r.rule_name}</span>
                           <span className="font-mono text-primary font-semibold">PASS</span>
                         </div>
                       ))}

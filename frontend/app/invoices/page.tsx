@@ -18,7 +18,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 const TABS = [
-  { key: "ALL", label: "All Runs" },
+  { key: "ALL", label: "All Invoices" },
   { key: "READY_FOR_AP_APPROVAL", label: "Ready for Approval" },
   { key: "REVIEW_REQUIRED", label: "Review Required" },
   { key: "BLOCKED", label: "Blocked" },
@@ -63,13 +63,13 @@ export default function InvoicesListPage() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-border">
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground text-xs font-semibold mb-2">
-            <span>{runs.length} Historical Records</span>
+            <span>{runs.length} Invoices</span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground leading-[1.15]">
-            Invoice History & Audit Runs
+            Invoice History
           </h1>
-          <p className="text-foreground/70 text-sm sm:text-base mt-1.5 max-w-2xl leading-relaxed">
-            Full durable audit log of all ingested invoice documents, deterministic decisions, and sign-offs.
+          <p className="text-foreground/75 text-sm sm:text-base mt-1.5 max-w-2xl leading-relaxed">
+            Complete history of processed invoices, verification checks, and approval decisions.
           </p>
         </div>
 
