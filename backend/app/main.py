@@ -1,3 +1,5 @@
+import logging
+import sys
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,6 +11,14 @@ from app.api.routes import (
     vendors_router,
     purchase_orders_router,
 )
+
+# Structured standard logging for LedgerFlow
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger('ledgerflow')
 
 settings = get_settings()
 

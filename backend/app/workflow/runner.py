@@ -316,19 +316,49 @@ class WorkflowRunner:
                     )
                     db.add(rule_row)
 
+                # Generate AI Executive Briefing / Summary
+                attention_rules = [
+                    f"{r['rule_name']}: {r['message']}"
+                    for r in decision_output["rule_results"]
+                    if r["status"] in ("FAIL", "WARNING")
+                ]
+                passed_count = sum(1 for r in decision_output["rule_results"] if r["status"] == "PASS")
+
+                v_obj = vendor_match.get("vendor")
+                v_name = v_obj.legal_name if v_obj else (getattr(extraction, "vendor", None) and extraction.vendor.name)
+                po_obj = po_match.get("po")
+                po_num = po_obj.po_number if po_obj else None
+                po_tot_str = str(po_obj.po_total) if po_obj else None
+                po_rem_str = str(po_balance_data.get("remaining_before")) if po_balance_data else None
+                po_rem_after_str = str(po_balance_data.get("remaining_after")) if po_balance_data else None
+
+                ai_summary = await self.llm_extractor.generate_run_summary(
+                    vendor_name=v_name,
+                    invoice_number=run.invoice_number,
+                    grand_total=str(run.grand_total) if run.grand_total else None,
+                    currency=run.currency,
+                    po_number=po_num,
+                    po_total=po_tot_str,
+                    po_remaining_before=po_rem_str,
+                    po_remaining_after=po_rem_after_str,
+                    decision_status=decision_output["status"],
+                    attention_rules=attention_rules,
+                    passed_rules_count=passed_count,
+                )
+
                 # Persist Decision
                 decision_row = InvoiceDecision(
                     run_id=run_id,
                     status=decision_output["status"],
                     reason_codes=decision_output["reason_codes"],
-                    summary=decision_output["summary"],
+                    summary=ai_summary,
                     recommended_action=decision_output["recommended_action"],
                 )
                 db.add(decision_row)
 
                 # Update Run Status
                 run.decision_status = decision_output["status"]
-                run.decision_summary = decision_output["summary"]
+                run.decision_summary = ai_summary
                 run.processing_state = "COMPLETED"
                 run.completed_at = datetime.utcnow()
                 await db.commit()
