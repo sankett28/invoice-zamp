@@ -26,6 +26,7 @@ import {
 } from "@phosphor-icons/react";
 import { api, RunDetail } from "@/lib/api";
 import { StatusBadge } from "@/components/status-badge";
+import { FormattedVerificationSummary } from "@/components/formatted-summary";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 
 const HUMAN_RULE_NAMES: Record<string, string> = {
@@ -104,21 +105,23 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
   };
 
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let isMounted = true;
+    let timer: NodeJS.Timeout | null = null;
 
-    fetchRun().then((initial) => {
-      if (initial && (initial.processing_state === "QUEUED" || initial.processing_state === "PROCESSING")) {
-        interval = setInterval(async () => {
-          const updated = await fetchRun();
-          if (updated && updated.processing_state !== "QUEUED" && updated.processing_state !== "PROCESSING") {
-            if (interval) clearInterval(interval);
-          }
-        }, 1000);
+    const poll = async () => {
+      const data = await fetchRun();
+      if (!isMounted) return;
+
+      if (data && (data.processing_state === "QUEUED" || data.processing_state === "PROCESSING")) {
+        timer = setTimeout(poll, 2500);
       }
-    });
+    };
+
+    poll();
 
     return () => {
-      if (interval) clearInterval(interval);
+      isMounted = false;
+      if (timer) clearTimeout(timer);
     };
   }, [runId]);
 
@@ -202,7 +205,8 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
   const vendor = ext.vendor || {};
   const lineItems: any[] = ext.line_items || ext.items || [];
   const po = run?.purchase_order;
-  const status = run?.decision_status || run?.processing_state || "PENDING";
+  const isProcessing = run?.processing_state === "QUEUED" || run?.processing_state === "PROCESSING";
+  const status = isProcessing ? run?.processing_state : (run?.decision_status || run?.processing_state || "PENDING");
 
   // Financial values
   const grandTotal = run?.grand_total || amounts.grand_total || amounts.total;
@@ -271,7 +275,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
 
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            {po && (
+            {po && !isProcessing && (
               <button
                 onClick={() => handleQuickAction("ASSIGN_PO", `Confirmed against PO ${po.po_number}.`)}
                 disabled={isSubmitting}
@@ -282,113 +286,140 @@ export default function RunDetailPage({ params }: { params: Promise<{ runId: str
             )}
             <button
               onClick={() => handleQuickAction("REQUEST_VENDOR_INFO", "Requesting additional documentation from vendor.")}
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-semibold text-xs transition shadow-2xs cursor-pointer disabled:opacity-50"
+              disabled={isSubmitting || isProcessing}
+              className="px-4 py-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground font-semibold text-xs transition shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Request vendor info
             </button>
             <button
               onClick={() => handleQuickAction("REJECT", "Rejected due to validation failure.")}
-              disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl bg-destructive/10 text-destructive border border-destructive/25 hover:bg-destructive/20 font-semibold text-xs transition shadow-2xs cursor-pointer disabled:opacity-50"
+              disabled={isSubmitting || isProcessing}
+              className="px-4 py-2 rounded-xl bg-destructive/10 text-destructive border border-destructive/25 hover:bg-destructive/20 font-semibold text-xs transition shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Reject
             </button>
           </div>
         </div>
 
-        {/* AI Briefing Snapshot Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {/* 1. PO Status */}
-          <div className="p-3 rounded-xl border border-border bg-background space-y-1">
-            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
-              PO Matching
-            </span>
-            <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
-              {po ? (
-                <>
-                  <CheckCircle size={15} weight="fill" className="text-emerald-500 shrink-0" />
-                  <span className="text-foreground font-mono truncate">{po.po_number} (Matched)</span>
-                </>
-              ) : (
-                <>
-                  <WarningCircle size={15} weight="fill" className="text-amber-500 shrink-0" />
-                  <span className="text-amber-600 truncate">No PO Linked</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* 2. Budget & Spend */}
-          <div className="p-3 rounded-xl border border-border bg-background space-y-1">
-            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
-              Spend &amp; Budget
-            </span>
-            <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
-              <span className="text-foreground font-mono">{grandTotal ? formatCurrency(grandTotal) : "—"}</span>
-              {po && (
-                <span className="text-[10px] text-primary font-mono font-medium truncate">
-                  ({formatCurrency(effectiveRemaining)} left)
+        {isProcessing ? (
+          <div className="p-5 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="relative flex items-center justify-center">
+                  <div className="w-3 h-3 rounded-full bg-primary animate-ping absolute opacity-75" />
+                  <div className="w-3 h-3 rounded-full bg-primary" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                  13-Stage Audit Pipeline In Progress
                 </span>
-              )}
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground flex items-center gap-1.5">
+                <ArrowsClockwise size={13} className="animate-spin text-primary" />
+                Live Analysis Running…
+              </span>
             </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              LedgerFlow is extracting invoice fields, running OCR &amp; AI extraction, matching PO records, reconciling line item arithmetic, and evaluating 16 compliance rules. The AI Verification Summary and Audit Snapshot will be generated automatically once all pipeline checks complete.
+            </p>
           </div>
+        ) : (
+          <>
+            {/* AI Briefing Snapshot Bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* 1. PO Status */}
+              <div className="p-3 rounded-xl border border-border bg-background space-y-1">
+                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                  PO Matching
+                </span>
+                <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
+                  {po ? (
+                    <>
+                      <CheckCircle size={15} weight="fill" className="text-emerald-500 shrink-0" />
+                      <span className="text-foreground font-mono truncate">{po.po_number} (Matched)</span>
+                    </>
+                  ) : (
+                    <>
+                      <WarningCircle size={15} weight="fill" className="text-amber-500 shrink-0" />
+                      <span className="text-amber-600 truncate">No PO Linked</span>
+                    </>
+                  )}
+                </div>
+              </div>
 
-          {/* 3. Audit Flags & Anomaly Check */}
-          <div className="p-3 rounded-xl border border-border bg-background space-y-1">
-            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
-              Audit &amp; Integrity
-            </span>
-            <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
-              {attentionRules.length === 0 ? (
-                <>
-                  <ShieldCheck size={15} weight="fill" className="text-emerald-500 shrink-0" />
-                  <span className="text-emerald-600 truncate">0 Flags · Verified Clean</span>
-                </>
-              ) : (
-                <>
-                  <Warning size={15} weight="fill" className="text-amber-500 shrink-0" />
-                  <span className="text-amber-600 truncate">{attentionRules.length} Item(s) Flagged</span>
-                </>
-              )}
+              {/* 2. Budget & Spend */}
+              <div className="p-3 rounded-xl border border-border bg-background space-y-1">
+                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                  Spend &amp; Budget
+                </span>
+                <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
+                  <span className="text-foreground font-mono">{grandTotal ? formatCurrency(grandTotal) : "—"}</span>
+                  {po && (
+                    <span className="text-[10px] text-primary font-mono font-medium truncate">
+                      ({formatCurrency(effectiveRemaining)} left)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. Audit Flags & Anomaly Check */}
+              <div className="p-3 rounded-xl border border-border bg-background space-y-1">
+                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                  Audit &amp; Integrity
+                </span>
+                <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
+                  {attentionRules.length === 0 ? (
+                    <>
+                      <ShieldCheck size={15} weight="fill" className="text-emerald-500 shrink-0" />
+                      <span className="text-emerald-600 truncate">0 Flags · Verified Clean</span>
+                    </>
+                  ) : (
+                    <>
+                      <Warning size={15} weight="fill" className="text-amber-500 shrink-0" />
+                      <span className="text-amber-600 truncate">{attentionRules.length} Item(s) Flagged</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* 4. Action Verdict */}
+              <div className="p-3 rounded-xl border border-border bg-background space-y-1">
+                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
+                  Recommended Action
+                </span>
+                <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
+                  {status === "READY_FOR_AP_APPROVAL" ? (
+                    <span className="text-emerald-600 truncate">Approve in AP</span>
+                  ) : status === "BLOCKED" ? (
+                    <span className="text-destructive truncate">Block &amp; Investigate</span>
+                  ) : (
+                    <span className="text-amber-600 truncate">Auditor Sign-off</span>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
 
-          {/* 4. Action Verdict */}
-          <div className="p-3 rounded-xl border border-border bg-background space-y-1">
-            <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider block">
-              Recommended Action
-            </span>
-            <div className="flex items-center gap-1.5 font-semibold text-xs truncate">
-              {status === "READY_FOR_AP_APPROVAL" ? (
-                <span className="text-emerald-600 truncate">Approve in AP</span>
-              ) : status === "BLOCKED" ? (
-                <span className="text-destructive truncate">Block &amp; Investigate</span>
-              ) : (
-                <span className="text-amber-600 truncate">Auditor Sign-off</span>
-              )}
+            {/* Natural Language AI Summary Box */}
+            <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-2">
+              <div className="flex items-center gap-2">
+                <Sparkle size={15} weight="fill" className="text-primary shrink-0" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
+                  Verification Summary
+                </span>
+              </div>
+              <FormattedVerificationSummary
+                text={
+                  run?.ai_summary ||
+                  run?.decision_summary ||
+                  (status === "READY_FOR_AP_APPROVAL"
+                    ? `${run?.vendor?.legal_name || "Vendor"} submitted invoice ${run?.invoice_number || run?.original_filename} for ${grandTotal ? formatCurrency(grandTotal) : "the invoice amount"}${po ? `, matching purchase order ${po.po_number} with ${formatCurrency(effectiveRemaining)} in remaining budget` : ""}.\n\n• **Clean Audit**: All ${passedRules.length || 16} automated audit checks passed cleanly — GST calculations, line totals, and duplicate checks are fully reconciled.\n\n**Action**: Verified clean and clear for immediate Accounts Payable approval.`
+                    : status === "BLOCKED"
+                    ? `This invoice was blocked by the automated audit engine due to policy violations.\n\n• **Policy Enforcement**: Automated compliance checks identified blocking violations.\n\n**Action**: Immediate investigation is required; do not schedule or release payment.`
+                    : `Invoice requires human reviewer review.\n\n• **Audit Attention**: Core integrity checks completed, but manual sign-off is required prior to releasing payment.\n\n**Action**: Review discrepancies before releasing funds.`)
+                }
+              />
             </div>
-          </div>
-        </div>
-
-        {/* Natural Language AI Summary Box */}
-        <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Sparkle size={15} weight="fill" className="text-primary shrink-0" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-primary">
-              Verification Summary
-            </span>
-          </div>
-          <p className="text-xs sm:text-[13px] leading-relaxed text-foreground font-medium">
-            {run?.ai_summary ||
-              run?.decision_summary ||
-              (status === "READY_FOR_AP_APPROVAL"
-                ? `${run?.vendor?.legal_name || "Vendor"} submitted invoice ${run?.invoice_number || run?.original_filename} for ${grandTotal ? formatCurrency(grandTotal) : "the invoice amount"}${po ? `, matching purchase order ${po.po_number} with ${formatCurrency(effectiveRemaining)} in remaining budget` : ""}. All ${passedRules.length || 16} automated audit checks passed cleanly: GST calculations and line totals are exact, document and invoice number are unique with zero duplicate risk, and no suspicious anomalies were detected. This invoice is verified and clear for immediate Accounts Payable approval.`
-                : status === "BLOCKED"
-                ? `This invoice was blocked by the automated audit engine due to policy violations. Immediate investigation is required; do not schedule or release payment.`
-                : `Invoice requires human reviewer review. Core integrity checks completed, but manual sign-off is required prior to releasing payment.`)}
-          </p>
-        </div>
+          </>
+        )}
       </div>
 
       {reviewSuccess && (
