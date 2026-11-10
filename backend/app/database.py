@@ -20,7 +20,9 @@ if settings.database_url.startswith("sqlite"):
     connect_args = {"check_same_thread": False, "timeout": 30.0}
     engine_kwargs["connect_args"] = connect_args
 else:
-    # Remote PostgreSQL (Supabase) settings to prevent connection drops and stale sockets
+    # Remote PostgreSQL (Supabase pooler / Railway)
+    connect_args = {"statement_cache_size": 0}
+    engine_kwargs["connect_args"] = connect_args
     engine_kwargs["pool_pre_ping"] = True
     engine_kwargs["pool_recycle"] = 300
     engine_kwargs["pool_size"] = 10
