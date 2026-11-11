@@ -341,13 +341,19 @@ Rules:
         if 'Line Item' in rule_text:
             return "**Line Item Calculation**: Quantity multiplied by unit price does not equal the stated line total on one or more items."
 
+        # Required fields missing
+        if 'Required Fields' in rule_text or 'could not be extracted' in rule_text.lower():
+            m_f = re.search(r'could not be extracted:\s*(.*?)(?:\.|$)', rule_text, re.IGNORECASE)
+            fields = m_f.group(1).strip() if m_f else 'Vendor Name / Tax ID, Invoice Number, Invoice Date'
+            return f"**Missing Critical Fields**: Key invoice fields could not be extracted ({fields})."
+
         # PO Balance & Tolerance
         if 'exceeds' in rule_text.lower() and 'po' in rule_text.lower():
             return "**PO Budget Exceeded**: Billed amount exceeds the remaining available budget on the referenced purchase order."
         if 'tolerance' in rule_text.lower():
             return "**Tolerance Warning**: Billed amount slightly exceeds PO remaining balance but is within the allowable tolerance margin."
 
-        # Vendor status
+        # Vendor status & identity
         if 'Vendor' in rule_text and ('status' in rule_text.lower() or 'approved' in rule_text.lower()):
             return "**Vendor Status Blocked**: Vendor is listed as inactive or unapproved in the vendor master."
         if 'Vendor Identity' in rule_text or 'could not be identified' in rule_text.lower():
@@ -383,12 +389,19 @@ Rules:
         passed_rules_count: int,
     ) -> str:
         curr = currency or "INR"
-        v_name = vendor_name or "Vendor"
-        inv_num = invoice_number or "unspecified invoice"
-        amt_str = f"{curr} {grand_total}" if grand_total else "the stated amount"
+        v_name = vendor_name if (vendor_name and vendor_name.lower() not in ("vendor", "unknown", "null", "none")) else None
+        inv_num = invoice_number if (invoice_number and invoice_number.lower() not in ("unspecified invoice", "unknown", "null", "none")) else None
+        amt_str = f"{curr} {grand_total}" if grand_total else "an unspecified amount"
         po_str = f", linked to Purchase Order {po_number}" if po_number else ""
 
-        overview = f"{v_name} submitted invoice {inv_num} for {amt_str}{po_str}."
+        if v_name and inv_num:
+            overview = f"{v_name} submitted invoice {inv_num} for {amt_str}{po_str}."
+        elif v_name and not inv_num:
+            overview = f"{v_name} submitted an unnumbered invoice for {amt_str}{po_str}."
+        elif not v_name and inv_num:
+            overview = f"An unidentified vendor submitted invoice {inv_num} for {amt_str}{po_str}."
+        else:
+            overview = f"An unverified document with missing vendor details and invoice number was submitted for {amt_str}{po_str}."
 
         bullets = []
         if decision_status == "READY_FOR_AP_APPROVAL":
@@ -402,8 +415,10 @@ Rules:
                 bullets.append(f"• {self._humanize_rule(r)}")
             if po_number and po_remaining_after:
                 bullets.append(f"• **PO Budget**: Available remaining budget on PO {po_number} is {curr} {po_remaining_after}.")
-            bullets.append(f"• **Integrity Checks**: {passed_rules_count} automated rules (tax ID, vendor identity, duplicate checks) verified cleanly.")
-            action = "**Action**: Requires human auditor review and resolution before payment release."
+            elif not po_number:
+                bullets.append("• **Unlinked Spend**: No purchase order is referenced, requiring manual PO allocation or confirmation.")
+            bullets.append(f"• **Integrity Checks**: {passed_rules_count} automated rules verified without blocking integrity failures.")
+            action = "**Action**: Requires human auditor review to verify document details before payment release."
         else: # BLOCKED
             for r in attention_rules[:3]:
                 bullets.append(f"• {self._humanize_rule(r)}")

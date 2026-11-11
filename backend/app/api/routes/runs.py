@@ -187,9 +187,24 @@ async def get_run_detail(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
         resp_dict["decision_summary"] = None
         return resp_dict
 
-    # Ensure rich AI summary is always returned
+    # Ensure rich, structured AI summary is returned and legacy DB summaries are auto-upgraded
     ai_sum = run.decision.summary if (run.decision and run.decision.summary and len(run.decision.summary) > 70) else run.decision_summary
-    if not ai_sum or len(ai_sum) < 65 or ai_sum.startswith("All required checks") or ai_sum.startswith("Reviewer resolved invoice") or "Arithmetic discrepancy: Declared" in ai_sum or "Subtotal: INR" in ai_sum:
+    needs_refresh = (
+        not ai_sum
+        or len(ai_sum) < 65
+        or "•" not in ai_sum
+        or ("Action" not in ai_sum and "**Action" not in ai_sum)
+        or "unspecified invoice" in ai_sum
+        or "requires human auditor attention" in ai_sum
+        or "Core tax and duplicate integrity checks succeeded, but auditor verification" in ai_sum
+        or "Arithmetic discrepancy: Declared" in ai_sum
+        or "Critical invoice fields could not be extracted" in ai_sum
+        or "Subtotal: INR" in ai_sum
+        or ai_sum.startswith("All required checks")
+        or ai_sum.startswith("Reviewer resolved invoice")
+    )
+
+    if needs_refresh:
         v_name = run.vendor.legal_name if run.vendor else ((run.extracted_data or {}).get("vendor", {}).get("name") if isinstance(run.extracted_data, dict) else None)
         po_obj = run.purchase_order
         po_num = po_obj.po_number if po_obj else None
@@ -220,6 +235,15 @@ async def get_run_detail(run_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
             attention_rules=attention_rules,
             passed_rules_count=passed_count,
         )
+
+        # Permanently upgrade database record so stale legacy text is replaced
+        try:
+            if run.decision:
+                run.decision.summary = ai_sum
+            run.decision_summary = ai_sum
+            await db.commit()
+        except Exception as dbe:
+            logger.warning(f"Could not persist upgraded summary to DB: {dbe}")
 
     resp_dict["ai_summary"] = ai_sum
     if not resp_dict.get("decision_summary") or len(resp_dict["decision_summary"]) < 60:
